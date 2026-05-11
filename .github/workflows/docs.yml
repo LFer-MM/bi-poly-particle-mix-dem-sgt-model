@@ -1,6 +1,12 @@
 # Build Sphinx HTML + PDF, publish HTML to GitHub Pages, and keep zip artifacts.
 #
-# Repo setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+# Repo setup (required or deploy-pages fails with HTTP 404):
+#   Settings → Pages → Build and deployment → Source: GitHub Actions → Save.
+# Private repos need a GitHub plan that includes Pages for private repositories.
+# You need admin access to the repo to enable Pages.
+#
+# Releases: each successful PDF build creates a tagged release with the PDF asset.
+# Add more assets later under "Create GitHub Release with PDF" (wheels, models, …).
 name: Documentation
 
 on:
@@ -14,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write # releases + PDF assets (deploy-pages still uses pages + id-token)
   pages: write
   id-token: write
 
@@ -75,6 +81,31 @@ jobs:
         with:
           name: documentation-pdf
           path: docs/build/latex/*.pdf
+
+      - name: Stage PDF for release (stable filename)
+        if: steps.pdf.outcome == 'success'
+        run: |
+          set -e
+          shopt -s nullglob
+          pdfs=(docs/build/latex/*.pdf)
+          if [ ${#pdfs[@]} -eq 0 ]; then
+            echo "No PDF found under docs/build/latex/"
+            exit 1
+          fi
+          cp "${pdfs[0]}" bppm-dem-sm-documentation.pdf
+
+      - name: Create GitHub Release with PDF
+        if: steps.pdf.outcome == 'success'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: docs-pdf-${{ github.run_id }}-${{ github.run_attempt }}
+          name: Documentation PDF (${{ github.ref_name }} @ ${{ github.sha }})
+          generate_release_notes: true
+          body: |
+            Sphinx PDF documentation for commit `${{ github.sha }}`.
+
+            Later builds can attach wheels and model artifacts here.
+          files: bppm-dem-sm-documentation.pdf
 
   deploy:
     needs: build
