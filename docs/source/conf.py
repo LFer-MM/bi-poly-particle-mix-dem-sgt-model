@@ -41,3 +41,11 @@ exclude_patterns = []
 
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
+
+# -- Options for LaTeX / PDF output -------------------------------------------------
+# Sphinx's pdflatex default uses TeX Gyre (tgtermes / tgheros), which needs
+# extra Debian packages (e.g. tex-gyre). Latin Modern ships with
+# texlive-latex-recommended and keeps CI minimal while producing valid PDFs.
+latex_elements = {
+    'fontpkg': r'\usepackage{lmodern}',
+}
