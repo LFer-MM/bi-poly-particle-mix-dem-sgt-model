@@ -1,0 +1,87 @@
+# Build Sphinx HTML + PDF, publish HTML to GitHub Pages, and keep zip artifacts.
+#
+# Repo setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+name: Documentation
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+# Pages: do not cancel in-flight deployments; serialize deploys.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e ".[docs]"
+
+      - name: Install LaTeX (for PDF)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            latexmk \
+            texlive-fonts-recommended \
+            texlive-latex-recommended \
+            texlive-latex-extra
+
+      - name: Build HTML
+        working-directory: docs
+        run: make html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/build/html
+
+      - name: Build PDF (LaTeX)
+        id: pdf
+        continue-on-error: true
+        working-directory: docs
+        run: make latexpdf
+
+      - name: Upload HTML artifact (zip)
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-html
+          path: docs/build/html/
+
+      - name: Upload PDF artifact
+        if: steps.pdf.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: documentation-pdf
+          path: docs/build/latex/*.pdf
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

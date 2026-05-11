@@ -1,0 +1,40 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "bppm-dem-sm"
+version = "0.0.1"
+description = "Sin descripcion de momento."
+authors = [
+  { name = "Fernando Martinez" },
+]
+
+readme = "README.md"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    
+]
+requires-python = "~=3.12.0"
+
+[project.optional-dependencies]
+docs = [
+  "sphinx>=7,<9",
+  "sphinx-rtd-theme",
+  "numpy",
+  "pandas",
+  "matplotlib",
+]
+
+[tool.ruff]
+line-length = 99
+src = ["bppm_dem_sm"]
+include = ["pyproject.toml", "bppm_dem_sm/**/*.py"]
+
+[tool.ruff.lint]
+extend-select = ["I"]  # Add import sorting
+
+[tool.ruff.lint.isort]
+known-first-party = ["bppm_dem_sm"]
+force-sort-within-sections = true
+
