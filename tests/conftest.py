@@ -1,16 +1,17 @@
-"""Pytest configuration: repo roots on sys.path for flat scripts."""
+"""Pytest configuration: script directories on sys.path for flat imports."""
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+PKG = REPO / "bppm_dem_sm"
 for p in (
-    REPO / "0_simulation",
-    REPO / "1_data_processing",
-    REPO / "2_model" / "1_RNNSR",
-    REPO / "3_metrics" / "0_lacey_mixing_index",
-    REPO / "4_visualization",
+    PKG / "data_gen_sim",
+    PKG / "data_processing",
+    PKG / "model" / "RNNSR",
+    PKG / "metrics" / "0_lacey_mixing_index",
+    PKG / "visualization",
 ):
     s = str(p)
     if s not in sys.path:

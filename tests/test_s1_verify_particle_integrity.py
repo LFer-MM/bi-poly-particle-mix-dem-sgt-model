@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 
 REPO = Path(__file__).resolve().parents[1]
-VERIFY_PATH = REPO / "1_data_processing" / "s1_verify particle_integrity.py"
+VERIFY_PATH = REPO / "bppm_dem_sm" / "data_processing" / "s1_verify_particle_integrity.py"
 
 
 @pytest.fixture(scope="module")

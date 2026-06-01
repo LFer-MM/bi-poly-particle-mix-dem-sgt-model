@@ -15,12 +15,12 @@ Repository dedicated to the development of the project titled **Polyhedral-Based
 - **2_model / 1_RNNSR** — Sequence models and frame-wise prediction scripts (TensorFlow where used).
 - **3_metrics / 0_lacey_mixing_index** — Lacey mixing index over time from ground-truth or predicted frames.
 - **4_visualization** — Parquet frame animation and gridded particle views.
-- **test** — Pytest suite for pure Python paths; YADE-backed tests are skipped when YADE is not installed.
+- **tests** — Pytest suite for pure Python paths; YADE-backed tests are skipped when YADE is not installed.
 
 ## Development
 
 - Install dev dependencies: `pip install -r requirements-dev.txt`
-- Run tests from the repo root: `python -m pytest test -q`
+- Run tests from the repo root: `python -m pytest tests -q`
 
 ## Relevant links
 

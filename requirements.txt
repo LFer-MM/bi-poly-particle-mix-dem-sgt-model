@@ -2,4 +2,7 @@ pip
 pytest
 python-dotenv
 ruff
+numpy
+pandas
+matplotlib
 -e .
