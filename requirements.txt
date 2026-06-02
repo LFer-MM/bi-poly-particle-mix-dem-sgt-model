@@ -5,4 +5,5 @@ ruff
 numpy
 pandas
 matplotlib
+pyarrow>=14.0.0
 -e .
