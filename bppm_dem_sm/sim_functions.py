@@ -1,19 +1,33 @@
 # IMPORTACION DE MODULOS -------------------------------------------------------------------------------------------------||
 
 ## LIBRERIA ESTANDAR
-import os
 import csv
-from math import radians, pi
+import math
+from math import pi, radians
+import os
+import random
 
 ## LOCALES
-from yade import ymport, Vector3, pack, Sphere, FrictMat
-from yade.utils import facet, unbalancedForce, sphere, wall
+from yade import FrictMat, Sphere, Vector3, pack, ymport
 from yade._polyhedra_utils import PWaveTimeStep
-from yade.wrapper import (O, ForceResetter, InsertionSortCollider, Bo1_Sphere_Aabb, Bo1_Facet_Aabb,
-                          InteractionLoop, Ig2_Sphere_Sphere_ScGeom, Ig2_Facet_Sphere_ScGeom,
-                          Ip2_FrictMat_FrictMat_FrictPhys, Ip2_FrictMat_FrictMat_MindlinPhys,
-                          Law2_ScGeom_FrictPhys_CundallStrack, Law2_ScGeom_MindlinPhys_Mindlin,
-                          NewtonIntegrator, RotationEngine, PyRunner)
+from yade.utils import facet, sphere, unbalancedForce
+from yade.wrapper import (
+    Bo1_Facet_Aabb,
+    Bo1_Sphere_Aabb,
+    ForceResetter,
+    Ig2_Facet_Sphere_ScGeom,
+    Ig2_Sphere_Sphere_ScGeom,
+    InsertionSortCollider,
+    InteractionLoop,
+    Ip2_FrictMat_FrictMat_FrictPhys,
+    Ip2_FrictMat_FrictMat_MindlinPhys,
+    Law2_ScGeom_FrictPhys_CundallStrack,
+    Law2_ScGeom_MindlinPhys_Mindlin,
+    NewtonIntegrator,
+    O,
+    PyRunner,
+    RotationEngine,
+)
 
 # ESTRUCTURAS DE APOYO -------------------------------------------------------------------------------------------------||
 
@@ -174,8 +188,10 @@ def load_all_particles(particle_diam_m, particle_count):
 
 def set_dt(new_dt=None, factor=0.3):
     """Set simulation timestep explicitly or from P-wave factor. In: new_dt or factor. Out: None (prints O.dt)."""
-    if new_dt: O.dt = new_dt
-    else: O.dt = factor * PWaveTimeStep()
+    if new_dt:
+        O.dt = new_dt
+    else:
+        O.dt = factor * PWaveTimeStep()
     print("O.dt set to: ", O.dt)
 
 def set_gravity_damping(new_gravity_damping):
@@ -230,11 +246,6 @@ def load_particle_positions(csv_path, *, set_vel_zero = True, set_ang_vel_zero =
     with open(csv_path, "r", newline="") as f:
         reader = csv.DictReader(f)
 
-        required = {"x", "y", "z", "r", "m"}
-        missing = required - set(reader.fieldnames or [])
-        if missing:
-            raise ValueError(f"CSV missing required columns: {sorted(missing)}")
-
         has_v = {"vx", "vy", "vz"}.issubset(reader.fieldnames)
         has_w = {"wx", "wy", "wz"}.issubset(reader.fieldnames)
 
@@ -244,12 +255,6 @@ def load_particle_positions(csv_path, *, set_vel_zero = True, set_ang_vel_zero =
             z = float(row["z"])
             r = float(row["r"])
             mat_label = (row.get("m", "") or "").strip()
-
-            if mat_label not in MATERIALS_MAP:
-                raise KeyError(
-                    f"Material '{mat_label}' not found in material_map. "
-                    f"Available: {list(MATERIALS_MAP.keys())}"
-                )
 
             mat = MATERIALS_MAP[mat_label]
 
@@ -299,18 +304,12 @@ def run_until_forces_balanced(threshold=0.001, interval=1000, motion_start_steps
 
     O.run(motion_start_steps, True)
 
-    O.engines += [PyRunner(iterPeriod=interval, command="s1_sim_functions._balance_check()", label=BALANCE_STATE["label"])]
+    O.engines += [PyRunner(iterPeriod=interval, command="sim_functions._balance_check()", label=BALANCE_STATE["label"])]
 
     for k in range(max_chunks):
         if BALANCE_STATE["done"]:
             return True
         O.run(wait_chunk, True)
-
-    for e in list(O.engines):
-        if getattr(e, "label", None) == BALANCE_STATE["label"]:
-            O.engines.remove(e)
-
-    raise RuntimeError(f"Forces didn't balance. LAST UNBALANCED FORCE = {BALANCE_STATE.get('last_unb')} | THRESHOLD: {threshold}")
 
 def settle_balance_save(gravity_damping, csv_path):
     """Set damping, run_until_forces_balanced, save_particle_positions. In: damping, csv_path. Out: None."""
@@ -367,13 +366,8 @@ def start_frame_capture(folder_name, interval, runner_label="frameCapture", iter
         "folder": folder,
     })
 
-    try:
-        r = O.engines[runner_label]
-        r.iterPeriod = int(iter_period)
-        r.dead = False
-    except Exception:
-        r = [PyRunner(command="s1_sim_functions._save_sphere_frame()", iterPeriod=int(iter_period), label=runner_label)]
-        O.engines += r
+    r = [PyRunner(command="sim_functions._save_sphere_frame()", iterPeriod=int(iter_period), label=runner_label)]
+    O.engines += r
 
     print(f"[FrameCapture] Saving spheres every {interval}s into: {folder}")
     return r
@@ -578,11 +572,8 @@ def _balance_check():
         O.pause()
 
 def _get_rotation_engine(label="rotation_engine"):
-    """Find RotationEngine in O.engines by label. In: label str. Out: engine or raises RuntimeError."""
-    try:
-        return next(e for e in O.engines if getattr(e, "label", None) == label)
-    except StopIteration:
-        raise RuntimeError(f"RotationEngine with label='{label}' not found in O.engines")
+    """Find a RotationEngine in O.engines by label."""
+    return next(e for e in O.engines if getattr(e, "label", None) == label)
 
 def _mat_label(b):
     """Material label string for body b, or empty. In: body. Out: str."""
@@ -630,3 +621,123 @@ def _save_sphere_frame():
 
     st["frame_id"] += 1
     st["next_save_time"] += st["interval"]
+
+# INGRESO DE PARTICULAS (caja-cuerda bidispersa) ---------------------------------------------------------------------||
+
+def chord_box_3d(diameter, y, box_height, depth):
+    """3D box whose bottom face is the chord at y, spanning the full Z depth."""
+    r = diameter / 2.0
+    y = max(-r, min(r, y))
+    half_chord = math.sqrt(max(0.0, r ** 2 - y ** 2))
+    x_min, x_max = -half_chord, half_chord
+    return {
+        "x_min": x_min, "x_max": x_max,
+        "y_bottom": y, "y_top": y + box_height,
+        "z_min": 0.0, "z_max": depth,
+        "width": x_max - x_min, "height": box_height, "depth": depth,
+        "min_corner": Vector3(x_min, y, 0.0),
+        "max_corner": Vector3(x_max, y + box_height, depth),
+    }
+
+def get_surface_y(padding=0.1):
+    """Max sphere top Y in the current scene plus padding."""
+    tops = [b.state.pos[1] + b.shape.radius for b in O.bodies if type(b.shape).__name__ == "Sphere"]
+    return max(tops) + padding
+
+def ingress_random(diameter, depth, r_small, r_large, n_small, n_large, box_height,
+                   material_small, material_large, color_small, color_large,
+                   settle_steps=10000, padding=0.1, verbose=True):
+    """Ingress bidisperse particles in random mixed batches via chord boxes."""
+    remaining_small, remaining_large = n_small, n_large
+    batch_idx = 0
+
+    while remaining_small > 0 or remaining_large > 0:
+        batch_idx += 1
+        total_remaining = remaining_small + remaining_large
+        valid_y = (diameter / 2.0) * -0.9 if batch_idx == 1 else get_surface_y(padding)
+        box = chord_box_3d(diameter, valid_y, box_height, depth)
+
+        box_vol = box["width"] * box["height"] * box["depth"]
+        vol_large = (4 / 3) * math.pi * r_large ** 3
+        batch_n = min(total_remaining, max(1, int(0.60 * box_vol / vol_large)))
+
+        frac_small = remaining_small / total_remaining
+        n_s = min(remaining_small, round(batch_n * frac_small))
+        n_l = min(remaining_large, batch_n - n_s)
+
+        sp = pack.SpherePack()
+        sp.makeCloud(minCorner=box["min_corner"], maxCorner=box["max_corner"],
+                     rMean=r_large, rRelFuzz=0.0, num=n_s + n_l, periodic=False)
+        new_ids = sp.toSimulation(material=material_large, color=color_large, wire=False)
+
+        ids_to_shrink = set(random.sample(list(new_ids), n_s))
+        for bid in new_ids:
+            b = O.bodies[bid]
+            if bid in ids_to_shrink:
+                b.shape.radius = r_small
+                b.material = O.materials[material_small]
+                b.shape.color = Vector3(*color_small)
+            else:
+                b.shape.color = Vector3(*color_large)
+
+        remaining_small -= n_s
+        remaining_large -= n_l
+        if verbose:
+            print(f"[batch {batch_idx}] +{n_s}s +{n_l}L  remaining: ({remaining_small}s, {remaining_large}L)")
+        O.run(settle_steps, True)
+
+    if verbose:
+        print(f"Ingress complete. {batch_idx} batches.")
+
+def ingress_segregated(diameter, depth, r_small, r_large, n_small, n_large, box_height,
+                       material_small, material_large, color_small, color_large,
+                       settle_steps=10000, padding=0.1, verbose=True):
+    """Ingress all small particles first, then all large."""
+    for size_label, r, n_target, material, color in (
+        ("SMALL", r_small, n_small, material_small, color_small),
+        ("LARGE", r_large, n_large, material_large, color_large),
+    ):
+        remaining = n_target
+        batch_idx = 0
+
+        while remaining > 0:
+            batch_idx += 1
+            first_small = batch_idx == 1 and size_label == "SMALL"
+            valid_y = (diameter / 2.0) * -0.9 if first_small else get_surface_y(padding)
+            box = chord_box_3d(diameter, valid_y, box_height, depth)
+
+            box_vol = box["width"] * box["height"] * box["depth"]
+            vol_sphere = (4 / 3) * math.pi * r ** 3
+            batch_n = min(remaining, max(1, int(0.60 * box_vol / vol_sphere)))
+
+            sp = pack.SpherePack()
+            sp.makeCloud(minCorner=box["min_corner"], maxCorner=box["max_corner"],
+                         rMean=r, rRelFuzz=0.0, num=batch_n, periodic=False)
+            new_ids = sp.toSimulation(material=material, wire=False)
+            for bid in new_ids:
+                O.bodies[bid].shape.color = Vector3(*color)
+
+            remaining -= len(new_ids)
+            if verbose:
+                print(f"[{size_label} batch {batch_idx}] +{len(new_ids)}  remaining: {remaining}")
+            O.run(settle_steps, True)
+
+        if verbose:
+            print(f"[{size_label}] done after {batch_idx} batches.")
+
+def get_particle_inventory(r_small, r_large, tol=1e-6, verbose=True):
+    """Count spheres per size class (small/large) within tol of each radius."""
+    inv = {"small": 0, "large": 0, "unclassified": 0}
+    for b in O.bodies:
+        if type(b.shape).__name__ != "Sphere":
+            continue
+        r = b.shape.radius
+        if abs(r - r_small) <= tol:
+            inv["small"] += 1
+        elif abs(r - r_large) <= tol:
+            inv["large"] += 1
+        else:
+            inv["unclassified"] += 1
+    if verbose:
+        print(f"Inventory: {inv['small']} small, {inv['large']} large, {inv['unclassified']} unclassified")
+    return inv
