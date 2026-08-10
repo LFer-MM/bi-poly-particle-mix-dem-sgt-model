@@ -1,44 +1,93 @@
-API reference
-=============
+Python API reference
+====================
 
-Full autodoc pages for every module live under :doc:`modules` /
-:doc:`bppm_dem_sm`. This page is a quick map of the public surface.
+Autodoc for the ``bppm_dem_sm`` package. This is the **callable Python
+interface** (importable modules, classes, and functions). The CLI
+``bppm-pipeline`` is a thin wrapper around the same code—especially
+:class:`~bppm_dem_sm.config.PipelineConfig` and
+:func:`~bppm_dem_sm.pipeline.run_pipeline`.
 
-End-to-end
-----------
+Configuration and CLI
+---------------------
 
-* :mod:`bppm_dem_sm.pipeline` — ``run_pipeline``
-* :mod:`bppm_dem_sm.cli` — ``bppm-pipeline`` CLI
-* :mod:`bppm_dem_sm.config` — ``PipelineConfig``
+.. automodule:: bppm_dem_sm.config
+   :members:
+   :show-inheritance:
 
-Data processing
----------------
+.. automodule:: bppm_dem_sm.cli
+   :members:
+   :show-inheritance:
 
-* :mod:`bppm_dem_sm.csv_to_parquet`
-* :mod:`bppm_dem_sm.verify_particle_integrity`
-* :mod:`bppm_dem_sm.data_io`
+Pipeline orchestration
+----------------------
 
-Simulation / data generation
-----------------------------
+.. automodule:: bppm_dem_sm.pipeline
+   :members:
+   :show-inheritance:
 
-* :mod:`bppm_dem_sm.simulation`
-* :mod:`bppm_dem_sm.sim_functions`
+.. automodule:: bppm_dem_sm.tf_quiet
+   :members:
+   :show-inheritance:
 
-Model
------
+Data I/O and processing
+-----------------------
 
-* :mod:`bppm_dem_sm.training`
-* :mod:`bppm_dem_sm.prediction`
+.. automodule:: bppm_dem_sm.data_io
+   :members:
+   :show-inheritance:
+
+.. automodule:: bppm_dem_sm.csv_to_parquet
+   :members:
+   :show-inheritance:
+
+.. automodule:: bppm_dem_sm.verify_particle_integrity
+   :members:
+   :show-inheritance:
+
+Model training and prediction
+-----------------------------
+
+.. automodule:: bppm_dem_sm.training
+   :members:
+   :show-inheritance:
+
+.. automodule:: bppm_dem_sm.prediction
+   :members:
+   :show-inheritance:
 
 Metrics
 -------
 
-* :mod:`bppm_dem_sm.lacey_mixing_index`
-* :mod:`bppm_dem_sm.run_metrics`
+.. automodule:: bppm_dem_sm.lacey_mixing_index
+   :members:
+   :show-inheritance:
+
+.. automodule:: bppm_dem_sm.run_metrics
+   :members:
+   :show-inheritance:
 
 Visualization
 -------------
 
-* :mod:`bppm_dem_sm.animate_particles`
-* :mod:`bppm_dem_sm.cell_grid`
-* :mod:`bppm_dem_sm.run_visualization`
+.. automodule:: bppm_dem_sm.animate_particles
+   :members:
+   :show-inheritance:
+
+.. automodule:: bppm_dem_sm.cell_grid
+   :members:
+   :show-inheritance:
+
+.. automodule:: bppm_dem_sm.run_visualization
+   :members:
+   :show-inheritance:
+
+DEM simulation (YADE)
+---------------------
+
+.. automodule:: bppm_dem_sm.simulation
+   :members:
+   :show-inheritance:
+
+.. automodule:: bppm_dem_sm.sim_functions
+   :members:
+   :show-inheritance:

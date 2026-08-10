@@ -1,19 +1,17 @@
-.. Bidisperse Polyhedrical Particle Mixing DEM Surrogate Model documentation master file, created by
-   sphinx-quickstart on Mon May 11 11:20:34 2026.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+Bidisperse Polyhedrical Particle Mixing DEM Surrogate Model
+===========================================================
 
-Bidisperse Polyhedrical Particle Mixing DEM Surrogate Model documentation
-=========================================================================
+Surrogate modeling for **bidisperse particle mixing** in a DEM (YADE) SAG-mill
+slice: train a GRU on particle frame sequences, roll out predictions, score
+mixing with the Lacey index, and render animations / cell-grid views.
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
-
+You typically drive the stack with the ``bppm-pipeline`` CLI (or by importing
+``run_pipeline`` / ``PipelineConfig`` in Python). The pages below document
+that **Python library surface**—not an HTTP/REST service.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   modules
+   getting_started
    api

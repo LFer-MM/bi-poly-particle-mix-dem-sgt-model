@@ -34,7 +34,6 @@ napoleon_include_private_with_doc = False
 autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',
-    'undoc-members': True,
     'show-inheritance': True,
 }
 
