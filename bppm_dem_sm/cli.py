@@ -25,7 +25,14 @@ _SKIP_CLI_FIELDS = frozenset({"feature_cols"})
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """Build the argparse parser for pipeline configuration."""
+    """Build the argparse parser for pipeline configuration.
+
+    Emits one flag per ``PipelineConfig`` field (except ``feature_cols``, which
+    uses ``--feature-cols``), plus ``--config`` for JSON loading.
+
+    Returns:
+        argparse.ArgumentParser: Configured parser for ``bppm-pipeline``.
+    """
     parser = argparse.ArgumentParser(
         prog="bppm-pipeline",
         description=(
@@ -100,7 +107,15 @@ def build_parser() -> argparse.ArgumentParser:
 def config_from_args(args: argparse.Namespace) -> PipelineConfig:
     """Resolve ``PipelineConfig`` from parsed CLI args.
 
-    If ``args.config`` is set, load only from that JSON file.
+    If ``args.config`` is set, load only from that JSON file; all other
+    pipeline flags are ignored.
+
+    Args:
+        args: Namespace produced by :func:`build_parser`.
+
+    Returns:
+        PipelineConfig: Defaults with any non-``None`` CLI overrides applied,
+        or the JSON-loaded config when ``--config`` is present.
     """
     if args.config is not None:
         return PipelineConfig.from_json(args.config)
@@ -114,7 +129,15 @@ def config_from_args(args: argparse.Namespace) -> PipelineConfig:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Parse CLI args, run the pipeline, return process exit code."""
+    """Parse CLI args, run the pipeline, return process exit code.
+
+    Args:
+        argv: Optional argument list (as for ``ArgumentParser.parse_args``);
+            ``None`` uses ``sys.argv``.
+
+    Returns:
+        int: ``0`` on success.
+    """
     from .tf_quiet import silence_tensorflow
 
     silence_tensorflow()

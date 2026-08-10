@@ -18,7 +18,14 @@ _PLANE_AXES = {"xy": ("x", "y"), "xz": ("x", "z"), "yz": ("y", "z")}
 
 
 def radius_colors(r):
-    """Map a bidisperse radius array to small/large category colors."""
+    """Map a bidisperse radius array to small/large category colors.
+
+    Args:
+        r: 1-D array of particle radii (two distinct values expected).
+
+    Returns:
+        numpy.ndarray: Per-particle color codes (small → red, large → blue).
+    """
     small_r = np.unique(r).min()
     return np.where(r == small_r, SMALL_COLOR, LARGE_COLOR)
 
@@ -32,7 +39,23 @@ def animate_particles(
     marker_size=4.0,
     save_path=None,
 ):
-    """Build a 2D scatter animation colored by particle radius."""
+    """Build a 2D scatter animation colored by particle radius.
+
+    Standalone helper; for the pipeline-integrated variant see
+    :func:`bppm_dem_sm.run_visualization.animate_frames`.
+
+    Args:
+        frames_dir: Directory containing parquet frames.
+        glob_pattern: Glob relative to ``frames_dir``.
+        plane: Projection plane: ``"xy"``, ``"xz"``, or ``"yz"``.
+        every_nth_frame: Subsample stride over sorted frame files.
+        fps: Animation frames per second (also used when saving).
+        marker_size: Scatter marker size.
+        save_path: Optional path to save an MP4; if ``None``, shows interactively.
+
+    Returns:
+        matplotlib.animation.FuncAnimation: The built animation object.
+    """
     from matplotlib.animation import FuncAnimation
     import matplotlib.pyplot as plt
 

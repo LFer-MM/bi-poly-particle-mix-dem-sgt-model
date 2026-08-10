@@ -13,7 +13,22 @@ from .lacey_mixing_index import GT_FRAME_RE, PRED_FRAME_RE
 
 
 def compute_lacey_over_dir(frames_dir, pattern, frame_re, tracer_r, config, out_name, label):
-    """Compute the Lacey index per frame in a directory; save a summary parquet."""
+    """Compute the Lacey index per frame in a directory; save a summary parquet.
+
+    Args:
+        frames_dir: Directory of parquet frames.
+        pattern: Glob for frame files.
+        frame_re: Regex used by :func:`extract_frame_index`.
+        tracer_r: Tracer (large) particle radius.
+        config: Supplies ``cell_size``, ``min_particles_per_cell``, ``metrics_dt``.
+        out_name: Filename for the summary parquet written into ``frames_dir``.
+        label: Short label for log messages (e.g. ``"GT"``, ``"PRED"``).
+
+    Returns:
+        pd.DataFrame: Per-frame Lacey summary sorted by ``frame``, with columns
+        ``frame``, ``time``, ``lacey``, ``n_cells_used``,
+        ``tracer_fraction_global``, ``mean_particles_per_cell``.
+    """
     rows = []
     for pth in data_io.sorted_frame_files(frames_dir, pattern):
         frame_idx = lacey.extract_frame_index(pth, frame_re)
@@ -39,7 +54,19 @@ def compute_lacey_over_dir(frames_dir, pattern, frame_re, tracer_r, config, out_
 
 
 def compute_metrics(config: PipelineConfig) -> dict[str, pd.DataFrame]:
-    """Compute the Lacey index for ground-truth and predicted frames."""
+    """Compute the Lacey index for ground-truth and predicted frames.
+
+    Detects the tracer radius from the first ground-truth frame, then runs
+    :func:`compute_lacey_over_dir` on DEM frames and, when present, on
+    predicted frames under ``config.pred_frames_dir``.
+
+    Args:
+        config: Pipeline settings for data paths and Lacey cell parameters.
+
+    Returns:
+        dict[str, pd.DataFrame]: ``"gt"`` summary always; ``"pred"`` when
+        predicted frames exist.
+    """
     gt_paths = data_io.sorted_frame_files(config.data_dir, config.frame_glob)
     tracer_r = lacey.detect_tracer_radius(pd.read_parquet(gt_paths[0])["r"].to_numpy())
     print(f"Detected tracer (large) radius r = {tracer_r}")
@@ -61,7 +88,17 @@ def compute_metrics(config: PipelineConfig) -> dict[str, pd.DataFrame]:
 
 
 def plot_lacey_comparison(metrics: dict[str, pd.DataFrame], config: PipelineConfig, show=True):
-    """Plot ground-truth vs surrogate Lacey index over time."""
+    """Plot ground-truth vs surrogate Lacey index over time.
+
+    Args:
+        metrics: Mapping from :func:`compute_metrics` (``gt`` / optional ``pred``).
+        config: If ``save_figures``, writes ``lacey_comparison.png`` under
+            ``FIGURES_DIR``.
+        show: If ``True``, display the figure interactively.
+
+    Returns:
+        matplotlib.figure.Figure: Lacey-vs-time comparison figure.
+    """
     import matplotlib.pyplot as plt
 
     fig = plt.figure()

@@ -10,7 +10,21 @@ import pandas as pd
 def plot_particles_with_grid(
     frame_path, cell_size, use_equal_aspect=True, save_path=None, show=True
 ):
-    """Scatter the two species on XY with a square grid overlay."""
+    """Scatter the two species on XY with a square grid overlay.
+
+    Rocks (smaller radius) are drawn in red and balls (larger radius) in blue.
+    The grid matches the square cell size used for Lacey mixing-index binning.
+
+    Args:
+        frame_path: Path to a parquet frame with ``x``, ``y``, and ``r`` columns.
+        cell_size: Square cell edge length in meters.
+        use_equal_aspect: If ``True``, enforce equal XY aspect ratio.
+        save_path: Optional path to save the figure (PNG); ``None`` skips save.
+        show: If ``True``, call ``plt.show()``; otherwise close the figure.
+
+    Returns:
+        matplotlib.figure.Figure: The created figure.
+    """
     df = pd.read_parquet(frame_path)
     x, y, r = df["x"].values, df["y"].values, df["r"].values
 

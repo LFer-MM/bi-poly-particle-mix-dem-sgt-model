@@ -1,3 +1,10 @@
+"""YADE DEM helpers for the bidisperse SAG mill slice simulation.
+
+Provides material/engine setup, particle loading and CSV I/O, force-balance
+settling, mill rotation, periodic frame capture, and chord-box ingress of
+random or segregated rock/steel charges.
+"""
+
 # IMPORTACION DE MODULOS -------------------------------------------------------------------------------------------------||
 
 ## LIBRERIA ESTANDAR
@@ -47,7 +54,12 @@ _frameCaptureState = {}
 # FUNCIONES PRINCIPALES ------------------------------------------------------------------------------------------------||
 
 def initialize_simulation_materials(materials):
-    """Register FrictMat entries from dict values into O.materials and MATERIALS_MAP. In: materials dict. Out: None."""
+    """Register FrictMat entries from dict values into O.materials and MATERIALS_MAP.
+
+    Args:
+        materials: Mapping of material name to property dicts with keys
+            ``density``, ``young``, ``poisson``, ``frictionAngle``, ``label``.
+    """
     for material_properties in materials.values():
         m = FrictMat(density=material_properties["density"],
                      young=material_properties["young"],
@@ -60,7 +72,11 @@ def initialize_simulation_materials(materials):
         print("Added material:", material_properties["label"])
 
 def initialize_sag_mill_slice(sagmill_stl_path):
-    """Load STL slice, add end caps, set SAG_MILL_SLICE_BODY_GROUP. In: path str. Out: None."""
+    """Load STL slice, add end caps, set SAG_MILL_SLICE_BODY_GROUP.
+
+    Args:
+        sagmill_stl_path: Path to the SAG mill slice STL (steel material).
+    """
     global SAG_MILL_SLICE_BODY_GROUP
 
     sag_mill_stl = ymport.stl(sagmill_stl_path, color=(1,1,1), wire=False, material="steel")
@@ -74,7 +90,16 @@ def initialize_sag_mill_slice(sagmill_stl_path):
     SAG_MILL_SLICE_BODY_GROUP = sag_mill_slice_body_group
 
 def initialize_engines(contact_model, contact_model_params, rotation_engine=False):
-    """Build O.engines for Cundall–Strack or Hertz–Mindlin; optionally append RotationEngine. In: model name, params dict, flag. Out: None."""
+    """Build O.engines for Cundall–Strack or Hertz–Mindlin; optionally append RotationEngine.
+
+    Args:
+        contact_model: ``"cundall_strack"`` or ``"hertz_mindlin"``.
+        contact_model_params: For Hertz–Mindlin, must include a
+            ``"restitution"`` MatchMaker (see
+            :func:`bppm_dem_sm.config.build_material_interactions`).
+        rotation_engine: If ``True``, append a ``RotationEngine`` labeled
+            ``rotation_engine`` using ``SAG_MILL_SLICE_BODY_GROUP``.
+    """
     if contact_model == "cundall_strack":
         O.engines = [
             ForceResetter(),
@@ -108,7 +133,12 @@ def initialize_engines(contact_model, contact_model_params, rotation_engine=Fals
     print("Initialized engines:", O.engines)
 
 def load_rock_particles(rock_diam_m, rock_count):
-    """Spawn rock spheres in four regions. In: diameter (m), count. Out: None (prints)."""
+    """Spawn rock spheres in four vertical regions of the mill slice.
+
+    Args:
+        rock_diam_m: Rock particle diameter in meters.
+        rock_count: Total number of rock spheres (split across regions).
+    """
     rock_sphere_pack_0 = pack.SpherePack()
     rock_sphere_pack_0.makeCloud(minCorner=(-4.5, 1, 0), maxCorner=(4.5, -2, 0.375), rMean=rock_diam_m/2, rRelFuzz=0, num=int(rock_count*0.5))
     rock_sphere_pack_0.toSimulation(material="rock", color=(1,0,0), wire=False)
@@ -129,7 +159,12 @@ def load_rock_particles(rock_diam_m, rock_count):
     print(message)
 
 def load_ball_particles(ball_diam_m, ball_count):
-    """Spawn ball_steel spheres in four regions. In: diameter (m), count. Out: None (prints)."""
+    """Spawn ball_steel spheres in four vertical regions of the mill slice.
+
+    Args:
+        ball_diam_m: Steel ball diameter in meters.
+        ball_count: Total number of ball spheres (split across regions).
+    """
     ball_sphere_pack_0 = pack.SpherePack()
     ball_sphere_pack_0.makeCloud(minCorner=(-2.75, 4, 0), maxCorner=(2.75, 5, 0.375), rMean=ball_diam_m/2, rRelFuzz=0, num=int(ball_count*0.1))
     ball_sphere_pack_0.toSimulation(material="ball_steel", color=(0,0,1), wire=False)
@@ -150,7 +185,12 @@ def load_ball_particles(ball_diam_m, ball_count):
     print(message)
 
 def load_all_particles(particle_diam_m, particle_count):
-    """Spawn white ball_steel particles across vertical stack regions. In: diameter, count. Out: None."""
+    """Spawn white ball_steel particles across vertical stack regions.
+
+    Args:
+        particle_diam_m: Particle diameter in meters.
+        particle_count: Total number of particles (split across regions).
+    """
     particle_sphere_pack_0 = pack.SpherePack()
     particle_sphere_pack_0.makeCloud(minCorner=(-2.75, 4, 0), maxCorner=(2.75, 5, 0.375), rMean=particle_diam_m/2, rRelFuzz=0, num=int(particle_count*0.05))
     particle_sphere_pack_0.toSimulation(material="ball_steel", color=(1,1,1), wire=False)
@@ -187,7 +227,13 @@ def load_all_particles(particle_diam_m, particle_count):
     print(message)
 
 def set_dt(new_dt=None, factor=0.3):
-    """Set simulation timestep explicitly or from P-wave factor. In: new_dt or factor. Out: None (prints O.dt)."""
+    """Set simulation timestep explicitly or from P-wave factor.
+
+    Args:
+        new_dt: Explicit timestep in seconds; if falsy, use
+            ``factor * PWaveTimeStep()``.
+        factor: Safety factor applied to the P-wave critical timestep.
+    """
     if new_dt:
         O.dt = new_dt
     else:
@@ -195,13 +241,27 @@ def set_dt(new_dt=None, factor=0.3):
     print("O.dt set to: ", O.dt)
 
 def set_gravity_damping(new_gravity_damping):
-    """Set NewtonIntegrator damping by label. In: damping float. Out: None."""
+    """Set NewtonIntegrator damping by label.
+
+    Args:
+        new_gravity_damping: Numerical damping coefficient for the engine
+            labeled ``newton_integrator``.
+    """
     newton_integrator = next(e for e in O.engines if getattr(e, "label", None) == "newton_integrator")
     newton_integrator.damping = new_gravity_damping
     print("Newton Integrator Gravity Damping set to: ", newton_integrator.damping)
 
 def save_particle_positions(csv_path, include_velocity=True, include_ang_vel=True):
-    """Write sphere states to CSV. In: path, velocity/angular flags. Out: csv_path str."""
+    """Write sphere states to CSV.
+
+    Args:
+        csv_path: Output CSV path.
+        include_velocity: If ``True``, include ``vx, vy, vz`` columns.
+        include_ang_vel: If ``True``, include ``wx, wy, wz`` columns.
+
+    Returns:
+        str: The ``csv_path`` written.
+    """
     header = ["id", "x", "y", "z", "r", "m"]
 
     if include_velocity:
@@ -240,7 +300,17 @@ def save_particle_positions(csv_path, include_velocity=True, include_ang_vel=Tru
     return csv_path
 
 def load_particle_positions(csv_path, *, set_vel_zero = True, set_ang_vel_zero = True):
-    """Recreate spheres from CSV using MATERIALS_MAP. In: path, zero-vel flags. Out: list of body ids."""
+    """Recreate spheres from CSV using MATERIALS_MAP.
+
+    Args:
+        csv_path: CSV written by :func:`save_particle_positions` (needs
+            ``x, y, z, r, m``; optional velocity columns).
+        set_vel_zero: If ``True``, zero linear velocity regardless of CSV.
+        set_ang_vel_zero: If ``True``, zero angular velocity regardless of CSV.
+
+    Returns:
+        list: YADE body ids of the created spheres.
+    """
     created_ids = []
 
     with open(csv_path, "r", newline="") as f:
@@ -292,7 +362,22 @@ def load_particle_positions(csv_path, *, set_vel_zero = True, set_ang_vel_zero =
 
 
 def run_until_forces_balanced(threshold=0.001, interval=1000, motion_start_steps=20, wait_chunk=1000, max_chunks=5000):
-    """Run until unbalancedForce < threshold or raise. In: thresholds/intervals. Out: True if balanced."""
+    """Run until unbalancedForce falls below threshold.
+
+    Installs a ``PyRunner`` that calls :func:`_balance_check` every
+    ``interval`` iterations. Returns early when ``BALANCE_STATE["done"]``.
+
+    Args:
+        threshold: Maximum unbalanced force ratio considered balanced.
+        interval: ``PyRunner`` iteration period for balance checks.
+        motion_start_steps: Steps to run before installing the monitor.
+        wait_chunk: Steps per wait loop iteration.
+        max_chunks: Maximum wait-loop iterations before giving up.
+
+    Returns:
+        bool | None: ``True`` if balanced; ``None`` if ``max_chunks`` is
+        exhausted without meeting the threshold.
+    """
     print("Starting balanced forces monitoring ...")
 
     BALANCE_STATE["done"] = False
@@ -312,19 +397,33 @@ def run_until_forces_balanced(threshold=0.001, interval=1000, motion_start_steps
         O.run(wait_chunk, True)
 
 def settle_balance_save(gravity_damping, csv_path):
-    """Set damping, run_until_forces_balanced, save_particle_positions. In: damping, csv_path. Out: None."""
+    """Set damping, run until forces balance, then save particle positions.
+
+    Args:
+        gravity_damping: Damping passed to :func:`set_gravity_damping`.
+        csv_path: Destination CSV for :func:`save_particle_positions`.
+    """
     set_gravity_damping(gravity_damping)
     run_until_forces_balanced()
     save_particle_positions(csv_path)
 
 def rotate_mill_indefinitely(speed_rpm=9):
-    """Set rotation_engine angular velocity from RPM and O.run() open-ended. In: speed_rpm. Out: None."""
+    """Set rotation_engine angular velocity from RPM and ``O.run()`` open-ended.
+
+    Args:
+        speed_rpm: Mill rotation speed in revolutions per minute.
+    """
     rotation_engine = next(e for e in O.engines if getattr(e, "label", None) == "rotation_engine")
     rotation_engine.angularVelocity = float(speed_rpm) * (2*pi) / 60
     O.run()
 
 def rotate_mill_by_degrees(degrees, speed_rpm=9):
-    """Rotate mill for time matching ``degrees`` at given RPM. In: degrees, speed_rpm. Out: None."""
+    """Rotate mill for time matching ``degrees`` at given RPM.
+
+    Args:
+        degrees: Signed rotation angle in degrees (sign sets direction).
+        speed_rpm: Absolute rotation speed in RPM.
+    """
     rotation_engine = _get_rotation_engine("rotation_engine")
 
     rpm = abs(float(speed_rpm))
@@ -339,7 +438,13 @@ def rotate_mill_by_degrees(degrees, speed_rpm=9):
         O.run(n_steps)
 
 def rotate_mill_by_time(virtual_time_seconds, speed_rpm=9):
-    """Run rotation for ``virtual_time_seconds`` of simulation time. In: seconds, speed_rpm. Out: None."""
+    """Run rotation for ``virtual_time_seconds`` of simulation time.
+
+    Args:
+        virtual_time_seconds: Signed simulation time in seconds (sign sets
+            rotation direction).
+        speed_rpm: Absolute rotation speed in RPM.
+    """
     rotation_engine = _get_rotation_engine("rotation_engine")
 
     rpm = abs(float(speed_rpm))
@@ -353,7 +458,20 @@ def rotate_mill_by_time(virtual_time_seconds, speed_rpm=9):
         O.run(n_steps)
 
 def start_frame_capture(folder_name, interval, runner_label="frameCapture", iter_period=50):
-    """Configure periodic CSV sphere dumps via PyRunner. In: folder base, interval (s), labels. Out: runner ref."""
+    """Configure periodic CSV sphere dumps via PyRunner.
+
+    Creates a folder named ``folder_name + str(O.dt) + "_"`` under the CWD and
+    appends a runner that calls :func:`_save_sphere_frame`.
+
+    Args:
+        folder_name: Base name for the output folder (``O.dt`` is appended).
+        interval: Simulation-time interval between CSV dumps (seconds).
+        runner_label: Label for the ``PyRunner`` engine.
+        iter_period: How often (in DEM iterations) the runner fires.
+
+    Returns:
+        list: The appended ``PyRunner`` engine(s).
+    """
     folder_name = folder_name + str(O.dt) + "_"
     folder = os.path.join(os.getcwd(), folder_name)
     os.makedirs(folder, exist_ok=True)
@@ -374,7 +492,17 @@ def start_frame_capture(folder_name, interval, runner_label="frameCapture", iter
 
 
 def createBox(x, y, z):
-    """Append open-top box facets (half-extents x,y; height z hardcoded 0.375). In: x,y,z dims. Out: None."""
+    """Append box facets (half-extents ``x``, ``y``; wall height fixed at 0.375 m).
+
+    Note:
+        The ``z`` argument is accepted for API compatibility but the facet
+        height is hardcoded to ``0.375``.
+
+    Args:
+        x: Half-extent in X (meters).
+        y: Half-extent in Y (meters).
+        z: Unused (see note); retained for call-site compatibility.
+    """
     mat = O.materials.append(FrictMat(density=7850, young=1e9, poisson=0.3, frictionAngle=radians(10)))
 
     # corner points
@@ -409,7 +537,16 @@ def createBox(x, y, z):
         O.bodies.append(facet(tri, material=mat))
 
 def createFunnel(x, y, z, fx, fy, dy):
-    """Append funnel + deposit box facets (top box x,y,z; deposit fx,fy; funnel length dy). In: dims. Out: None."""
+    """Append funnel and deposit-box facets for particle ingress geometry.
+
+    Args:
+        x: Half-width of the top box in X (meters).
+        y: Full length of the top box in Y (meters).
+        z: Height of the top box / funnel walls in Z (meters).
+        fx: Half-width of the narrowed funnel/deposit in X (meters).
+        fy: Length of the deposit box in Y (meters).
+        dy: Funnel slope length in Y (meters).
+    """
     mat = O.materials.append(FrictMat(density=7850, young=1e9, poisson=0.3, frictionAngle=radians(10)))
 
     # -- TOP BOX corners -------------------------------------
@@ -496,7 +633,14 @@ def createFunnel(x, y, z, fx, fy, dy):
         O.bodies.append(facet(tri, material=mat))
 
 def check_overlaps():
-    """Max relative sphere–sphere penetration depth. In: O state. Out: float ratio (prints worst pair)."""
+    """Max relative sphere–sphere penetration depth.
+
+    Scans real interactions, ignoring facet contacts. Relative overlap is
+    ``penetrationDepth / min(r1, r2)``.
+
+    Returns:
+        float: Maximum relative overlap ratio among sphere–sphere contacts.
+    """
     max_rel = 0.0
     worst_pair = None
     for i in O.interactions:
@@ -520,7 +664,14 @@ def check_overlaps():
 # FUNCIONES AYUDANTES ------------------------------------------------------------------------------------------------||
 
 def _obtain_sag_mill_slice_measurements(sag_mill_body_group):
-    """Bounding radius and Z extents from slice body ids. In: id list. Out: (radius_m, z_min, z_max)."""
+    """Bounding radius and Z extents from slice body ids.
+
+    Args:
+        sag_mill_body_group: Iterable of YADE body ids belonging to the STL slice.
+
+    Returns:
+        tuple: ``(radius_m, z_min, z_max)`` derived from body positions.
+    """
     x_pos = [O.bodies[mill].state.pos[0] for mill in sag_mill_body_group]
     z_pos = [O.bodies[mill].state.pos[2] for mill in sag_mill_body_group]
 
@@ -540,7 +691,15 @@ def _obtain_sag_mill_slice_measurements(sag_mill_body_group):
     return sag_mill_slice_radius_m, z_min, z_max
 
 def _add_sag_mill_slice_caps(sag_mill_slice_body_group, sag_mill_slice_radius_m, z_min, z_max):
-    """Append triangular end-cap facets; extends sag_mill_slice_body_group list. In: group, radius, z. Out: None."""
+    """Append triangular end-cap facets; extends ``sag_mill_slice_body_group`` in place.
+
+    Args:
+        sag_mill_slice_body_group: Mutable list of mill body ids (extended with
+            new facet ids).
+        sag_mill_slice_radius_m: Mill slice radius used to size the caps.
+        z_min: Back-face Z coordinate.
+        z_max: Front-face Z coordinate.
+    """
     cap_max = sag_mill_slice_radius_m * 1.5
 
     end_cap_back_0 = [Vector3(cap_max,0,z_min), Vector3(0,-cap_max,z_min), Vector3(-cap_max,0,z_min)]
@@ -555,7 +714,11 @@ def _add_sag_mill_slice_caps(sag_mill_slice_body_group, sag_mill_slice_radius_m,
     sag_mill_slice_body_group += O.bodies.append([facet(end_cap_front_1, color=(0,1,0), wire=True, material="steel")])
 
 def _balance_check():
-    """PyRunner hook: stop sim when unbalancedForce below threshold. In: O, BALANCE_STATE. Out: None."""
+    """PyRunner hook: stop sim when unbalancedForce is below threshold.
+
+    Updates ``BALANCE_STATE``, removes the monitor engine, and calls
+    ``O.pause()`` when balanced.
+    """
     unb = unbalancedForce()
     print("UNBALANCED FORCES:", unb)
     BALANCE_STATE["last_unb"] = unb
@@ -572,18 +735,39 @@ def _balance_check():
         O.pause()
 
 def _get_rotation_engine(label="rotation_engine"):
-    """Find a RotationEngine in O.engines by label."""
+    """Find a RotationEngine in O.engines by label.
+
+    Args:
+        label: Engine label to match (default ``"rotation_engine"``).
+
+    Returns:
+        RotationEngine: The matching engine instance.
+
+    Raises:
+        StopIteration: If no engine with that label exists.
+    """
     return next(e for e in O.engines if getattr(e, "label", None) == label)
 
 def _mat_label(b):
-    """Material label string for body b, or empty. In: body. Out: str."""
+    """Material label string for body ``b``, or empty.
+
+    Args:
+        b: YADE body.
+
+    Returns:
+        str: Material ``label``, or ``""`` if missing.
+    """
     m = getattr(b, "material", None)
     if m is None:
         return ""
     return str(getattr(m, "label", ""))
 
 def _save_sphere_frame():
-    """PyRunner: write sphere CSV when O.time reaches next interval. In: _frameCaptureState. Out: None."""
+    """PyRunner: write sphere CSV when ``O.time`` reaches the next interval.
+
+    Uses module-level ``_frameCaptureState`` configured by
+    :func:`start_frame_capture`. Advances ``frame_id`` and ``next_save_time``.
+    """
     print("Checking at time:", O.time)
 
     st = _frameCaptureState
@@ -625,7 +809,18 @@ def _save_sphere_frame():
 # INGRESO DE PARTICULAS (caja-cuerda bidispersa) ---------------------------------------------------------------------||
 
 def chord_box_3d(diameter, y, box_height, depth):
-    """3D box whose bottom face is the chord at y, spanning the full Z depth."""
+    """3D box whose bottom face is the chord at ``y``, spanning the full Z depth.
+
+    Args:
+        diameter: Mill / circle diameter in meters.
+        y: Bottom Y of the chord box (clamped to ``[-r, r]``).
+        box_height: Box height in Y (meters).
+        depth: Slice depth in Z (meters).
+
+    Returns:
+        dict: Geometry with corner extents, dimensions, and
+        ``min_corner`` / ``max_corner`` ``Vector3`` values for ``SpherePack``.
+    """
     r = diameter / 2.0
     y = max(-r, min(r, y))
     half_chord = math.sqrt(max(0.0, r ** 2 - y ** 2))
@@ -640,14 +835,41 @@ def chord_box_3d(diameter, y, box_height, depth):
     }
 
 def get_surface_y(padding=0.1):
-    """Max sphere top Y in the current scene plus padding."""
+    """Max sphere top Y in the current scene plus padding.
+
+    Args:
+        padding: Extra clearance above the tallest sphere top (meters).
+
+    Returns:
+        float: Y coordinate for the next ingress chord-box bottom.
+    """
     tops = [b.state.pos[1] + b.shape.radius for b in O.bodies if type(b.shape).__name__ == "Sphere"]
     return max(tops) + padding
 
 def ingress_random(diameter, depth, r_small, r_large, n_small, n_large, box_height,
                    material_small, material_large, color_small, color_large,
                    settle_steps=10000, padding=0.1, verbose=True):
-    """Ingress bidisperse particles in random mixed batches via chord boxes."""
+    """Ingress bidisperse particles in random mixed batches via chord boxes.
+
+    Each batch packs spheres at ``r_large``, then randomly shrinks a subset to
+    ``r_small`` and assigns the small material/color. Settles after every batch.
+
+    Args:
+        diameter: Mill diameter used for chord geometry (meters).
+        depth: Slice depth in Z (meters).
+        r_small: Small-species radius (meters).
+        r_large: Large-species radius (meters).
+        n_small: Target number of small particles.
+        n_large: Target number of large particles.
+        box_height: Ingress box height in Y (meters).
+        material_small: YADE material label for small particles.
+        material_large: YADE material label for large particles.
+        color_small: RGB tuple for small particles.
+        color_large: RGB tuple for large particles.
+        settle_steps: DEM steps to run after each batch.
+        padding: Clearance for :func:`get_surface_y` on later batches.
+        verbose: If ``True``, print batch progress.
+    """
     remaining_small, remaining_large = n_small, n_large
     batch_idx = 0
 
@@ -692,7 +914,27 @@ def ingress_random(diameter, depth, r_small, r_large, n_small, n_large, box_heig
 def ingress_segregated(diameter, depth, r_small, r_large, n_small, n_large, box_height,
                        material_small, material_large, color_small, color_large,
                        settle_steps=10000, padding=0.1, verbose=True):
-    """Ingress all small particles first, then all large."""
+    """Ingress all small particles first, then all large.
+
+    Same chord-box batching as :func:`ingress_random`, but species are poured
+    sequentially (fully segregated charge).
+
+    Args:
+        diameter: Mill diameter used for chord geometry (meters).
+        depth: Slice depth in Z (meters).
+        r_small: Small-species radius (meters).
+        r_large: Large-species radius (meters).
+        n_small: Target number of small particles.
+        n_large: Target number of large particles.
+        box_height: Ingress box height in Y (meters).
+        material_small: YADE material label for small particles.
+        material_large: YADE material label for large particles.
+        color_small: RGB tuple for small particles.
+        color_large: RGB tuple for large particles.
+        settle_steps: DEM steps to run after each batch.
+        padding: Clearance for :func:`get_surface_y` on later batches.
+        verbose: If ``True``, print batch progress.
+    """
     for size_label, r, n_target, material, color in (
         ("SMALL", r_small, n_small, material_small, color_small),
         ("LARGE", r_large, n_large, material_large, color_large),
@@ -726,7 +968,17 @@ def ingress_segregated(diameter, depth, r_small, r_large, n_small, n_large, box_
             print(f"[{size_label}] done after {batch_idx} batches.")
 
 def get_particle_inventory(r_small, r_large, tol=1e-6, verbose=True):
-    """Count spheres per size class (small/large) within tol of each radius."""
+    """Count spheres per size class (small/large) within tol of each radius.
+
+    Args:
+        r_small: Expected small-species radius (meters).
+        r_large: Expected large-species radius (meters).
+        tol: Absolute radius tolerance for classification.
+        verbose: If ``True``, print the inventory summary.
+
+    Returns:
+        dict: Counts with keys ``"small"``, ``"large"``, and ``"unclassified"``.
+    """
     inv = {"small": 0, "large": 0, "unclassified": 0}
     for b in O.bodies:
         if type(b.shape).__name__ != "Sphere":

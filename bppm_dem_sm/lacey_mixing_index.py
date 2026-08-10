@@ -15,19 +15,48 @@ PRED_FRAME_RE = re.compile(r"pred_frame_(\d+)\.parquet$", re.IGNORECASE)
 
 
 def extract_frame_index(path, frame_re=GT_FRAME_RE):
-    """Parse the frame index from a filename."""
+    """Parse the frame index from a filename.
+
+    Args:
+        path: File path whose basename matches ``frame_re``.
+        frame_re: Compiled regex with one capture group for the frame index
+            (default ``GT_FRAME_RE`` for ``frame_XXXXX.parquet``).
+
+    Returns:
+        int: Frame index extracted from the filename.
+    """
     return int(frame_re.search(os.path.basename(path)).group(1))
 
 
 def detect_tracer_radius(r_values):
-    """Pick the larger of the two radii as the tracer species."""
+    """Pick the larger of the two radii as the tracer species.
+
+    Args:
+        r_values: Array of particle radii from a bidisperse frame.
+
+    Returns:
+        float: Larger distinct radius (tracer / large balls).
+    """
     return float(np.unique(np.round(r_values.astype(float), 12)).max())
 
 
 def lacey_index_for_frame(df, cell_size, tracer_radius, min_particles_per_cell=5):
     """Compute Lacey M on a 3D cell grid for one frame.
 
-    Returns (M, n_cells_used, global tracer fraction, mean particles per cell).
+    Particles are binned into cubic cells of edge ``cell_size``. Cells with
+    fewer than ``min_particles_per_cell`` are ignored. ``M`` is clipped to
+    ``[0, 1]`` (0 = segregated, 1 = randomly mixed).
+
+    Args:
+        df: Frame table with columns ``x``, ``y``, ``z``, ``r``.
+        cell_size: Cubic cell edge length in meters.
+        tracer_radius: Radius identifying the tracer (large) species.
+        min_particles_per_cell: Minimum count for a cell to contribute to ``M``.
+
+    Returns:
+        tuple: ``(M, n_cells_used, p_global, mean_particles_per_cell)`` where
+        ``M`` is the Lacey index, ``p_global`` is the global tracer fraction,
+        and ``mean_particles_per_cell`` is over cells that passed the filter.
     """
     x = df["x"].to_numpy(float)
     y = df["y"].to_numpy(float)

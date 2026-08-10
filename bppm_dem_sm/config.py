@@ -51,7 +51,12 @@ MATERIALS = {
 
 
 def build_material_interactions():
-    """Restitution MatchMaker for steel/rock contacts (idx 0 steel, 1 rock; needs YADE)."""
+    """Restitution MatchMaker for steel/rock contacts (idx 0 steel, 1 rock; needs YADE).
+
+    Returns:
+        dict: Mapping with a ``"restitution"`` key whose value is a YADE
+        ``MatchMaker`` of pairwise restitution coefficients.
+    """
     from yade import MatchMaker
 
     return {
@@ -66,7 +71,12 @@ def build_material_interactions():
 
 @dataclass
 class PipelineConfig:
-    """Knobs for the end-to-end surrogate pipeline."""
+    """Knobs for the end-to-end surrogate pipeline.
+
+    Groups data paths, GRU training hyperparameters, sliding-window prediction
+    settings, Lacey metrics, and visualization flags used by
+    :func:`bppm_dem_sm.pipeline.run_pipeline`.
+    """
 
     # data
     data_dir: Path = PROCESSED_DIR / DEFAULT_DATASET
@@ -116,16 +126,28 @@ class PipelineConfig:
 
     @property
     def pred_frames_dir(self) -> Path:
-        """Directory holding one parquet per predicted frame."""
+        """Directory holding one parquet per predicted frame.
+
+        Returns:
+            Path: ``pred_out_dir / "pred_frames"``.
+        """
         return Path(self.pred_out_dir) / "pred_frames"
 
     @property
     def pred_combined_parquet(self) -> Path:
-        """Path to the combined predictions table."""
+        """Path to the combined predictions table.
+
+        Returns:
+            Path: ``pred_out_dir / "predictions_all.parquet"``.
+        """
         return Path(self.pred_out_dir) / "predictions_all.parquet"
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize config fields; ``Path`` values become strings."""
+        """Serialize config fields; ``Path`` values become strings.
+
+        Returns:
+            dict[str, Any]: Field name to JSON-serializable value.
+        """
         raw = asdict(self)
         for name, typ in _field_types().items():
             if typ is Path and raw.get(name) is not None:
@@ -134,7 +156,19 @@ class PipelineConfig:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PipelineConfig:
-        """Build a config from a mapping (e.g. parsed JSON). Unknown keys raise."""
+        """Build a config from a mapping (e.g. parsed JSON). Unknown keys raise.
+
+        Args:
+            data: Mapping of ``PipelineConfig`` field names to values. Paths
+                may be strings; bools may be common string forms.
+
+        Returns:
+            PipelineConfig: Coerced configuration instance.
+
+        Raises:
+            ValueError: If ``data`` contains keys not defined on the dataclass.
+            TypeError: If a bool field cannot be coerced.
+        """
         known = {f.name for f in fields(cls)}
         unknown = set(data) - known
         if unknown:
@@ -154,7 +188,18 @@ class PipelineConfig:
 
     @classmethod
     def from_json(cls, path: Path | str) -> PipelineConfig:
-        """Load config from a JSON file."""
+        """Load config from a JSON file.
+
+        Args:
+            path: Path to a JSON object whose keys are ``PipelineConfig`` fields.
+
+        Returns:
+            PipelineConfig: Configuration built via :meth:`from_dict`.
+
+        Raises:
+            ValueError: If the JSON root is not an object.
+            OSError: If the file cannot be read.
+        """
         path = Path(path)
         with path.open(encoding="utf-8") as fh:
             data = json.load(fh)
@@ -164,7 +209,11 @@ class PipelineConfig:
 
 
 def _field_types() -> dict[str, type]:
-    """Map field name -> concrete type used for coercion."""
+    """Map field name to concrete type used for coercion.
+
+    Returns:
+        dict[str, type]: Field name to ``Path``, ``bool``, or ``object``.
+    """
     hints = get_type_hints(PipelineConfig)
     mapping: dict[str, type] = {}
     for name, hint in hints.items():
@@ -179,6 +228,18 @@ def _field_types() -> dict[str, type]:
 
 
 def _coerce_bool(value: Any, key: str) -> bool:
+    """Coerce a common string/truthy form into a bool for config loading.
+
+    Args:
+        value: Value to coerce (typically a string such as ``"true"`` / ``"0"``).
+        key: Field name used only in the error message.
+
+    Returns:
+        bool: Parsed boolean.
+
+    Raises:
+        TypeError: If ``value`` is not a recognized boolean string form.
+    """
     if isinstance(value, str):
         lowered = value.strip().lower()
         if lowered in {"1", "true", "yes", "on"}:

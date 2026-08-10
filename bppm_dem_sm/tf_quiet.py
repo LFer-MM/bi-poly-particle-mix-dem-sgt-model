@@ -10,6 +10,11 @@ def silence_tensorflow() -> None:
 
     Must run before TensorFlow/Keras is imported. Uses ``setdefault`` so an
     explicit user/env setting still wins.
+
+    Sets:
+
+    - ``TF_CPP_MIN_LOG_LEVEL=3``
+    - ``TF_ENABLE_ONEDNN_OPTS=0``
     """
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
     os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")

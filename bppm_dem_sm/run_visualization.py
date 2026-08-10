@@ -20,13 +20,36 @@ LARGE_COLOR = "#1f77b4"
 
 
 def _radius_colors(r):
-    """Map a bidisperse radius array to small/large category colors."""
+    """Map a bidisperse radius array to small/large category colors.
+
+    Args:
+        r: 1-D array of particle radii (two distinct values expected).
+
+    Returns:
+        numpy.ndarray: Per-particle color codes (small → red, large → blue).
+    """
     small_r = np.unique(r).min()
     return np.where(r == small_r, SMALL_COLOR, LARGE_COLOR)
 
 
 def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet", save_path=None):
-    """Build a 2D scatter animation colored by particle radius."""
+    """Build a 2D scatter animation colored by particle radius.
+
+    Uses ``config.plane``, ``fps``, ``marker_size``, and ``every_nth_frame``.
+    When saving MP4 without ffmpeg, falls back to GIF via Pillow.
+
+    Args:
+        frames_dir: Directory of parquet frames to animate.
+        config: Visualization settings from ``PipelineConfig``.
+        pattern: Glob for frame files (e.g. ``pred_frame_*.parquet``).
+        save_path: Optional output path (``.mp4`` or ``.gif``); ``None`` shows
+            interactively when ``config.show_plots`` is true.
+
+    Returns:
+        tuple: ``(anim, resolved_save_path)`` where ``resolved_save_path`` may
+        differ from ``save_path`` if MP4 was rewritten as GIF, or is ``None``
+        when not saving.
+    """
     from matplotlib.animation import FuncAnimation, writers
     import matplotlib.pyplot as plt
 
@@ -75,7 +98,17 @@ def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet"
 
 
 def plot_frame_grid(frame_path, config: PipelineConfig, save_path=None, show=True):
-    """Render a single frame with the Lacey cell grid overlaid."""
+    """Render a single frame with the Lacey cell grid overlaid.
+
+    Args:
+        frame_path: Parquet frame to scatter-plot.
+        config: Supplies ``cell_size`` for the grid overlay.
+        save_path: Optional path to save the figure.
+        show: Whether to display the figure interactively.
+
+    Returns:
+        matplotlib.figure.Figure: Figure from :func:`plot_particles_with_grid`.
+    """
     return plot_particles_with_grid(
         str(frame_path),
         config.cell_size,
@@ -85,7 +118,18 @@ def plot_frame_grid(frame_path, config: PipelineConfig, save_path=None, show=Tru
 
 
 def generate_visualizations(config: PipelineConfig) -> dict:
-    """Render the cell-grid frame and the prediction animation."""
+    """Render the cell-grid frame and the prediction animation.
+
+    Plots the first ground-truth frame with the Lacey cell grid and animates
+    predicted frames under ``config.pred_frames_dir``.
+
+    Args:
+        config: Pipeline settings controlling show/save and animation options.
+
+    Returns:
+        dict: Paths and artists (``grid_frame``, optional ``grid_figure``,
+        ``animation``, and save paths when ``save_figures`` is true).
+    """
     gt_files = data_io.sorted_frame_files(config.data_dir, config.frame_glob)
     artifacts: dict = {"grid_frame": gt_files[0]}
 

@@ -1,39 +1,44 @@
 API reference
 =============
 
+Full autodoc pages for every module live under :doc:`modules` /
+:doc:`bppm_dem_sm`. This page is a quick map of the public surface.
+
+End-to-end
+----------
+
+* :mod:`bppm_dem_sm.pipeline` — ``run_pipeline``
+* :mod:`bppm_dem_sm.cli` — ``bppm-pipeline`` CLI
+* :mod:`bppm_dem_sm.config` — ``PipelineConfig``
+
 Data processing
 ---------------
 
-.. automodule:: bppm_dem_sm.data_processing.s0_csv_to_parquet
-   :members:
-
-.. automodule:: bppm_dem_sm.data_processing.s1_verify_particle_integrity
-   :members:
+* :mod:`bppm_dem_sm.csv_to_parquet`
+* :mod:`bppm_dem_sm.verify_particle_integrity`
+* :mod:`bppm_dem_sm.data_io`
 
 Simulation / data generation
 ----------------------------
 
-.. automodule:: bppm_dem_sm.data_gen_sim.ingress_func_v1
-   :members:
-
-.. automodule:: bppm_dem_sm.data_gen_sim.s1_sim_functions
-   :members:
+* :mod:`bppm_dem_sm.simulation`
+* :mod:`bppm_dem_sm.sim_functions`
 
 Model
 -----
 
-.. automodule:: bppm_dem_sm.model.RNNSR.s0_rnn
-   :members:
+* :mod:`bppm_dem_sm.training`
+* :mod:`bppm_dem_sm.prediction`
 
-.. automodule:: bppm_dem_sm.model.RNNSR.s1_rnn_predictions
-   :members:
+Metrics
+-------
+
+* :mod:`bppm_dem_sm.lacey_mixing_index`
+* :mod:`bppm_dem_sm.run_metrics`
 
 Visualization
 -------------
 
-.. automodule:: bppm_dem_sm.visualization.u0_animate_particles
-   :members:
-
-.. automodule:: bppm_dem_sm.visualization.u1_visualize_cell_grid
-   :members:
-
+* :mod:`bppm_dem_sm.animate_particles`
+* :mod:`bppm_dem_sm.cell_grid`
+* :mod:`bppm_dem_sm.run_visualization`

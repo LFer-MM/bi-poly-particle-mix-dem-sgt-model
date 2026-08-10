@@ -6,7 +6,15 @@ from . import config, sim_functions
 
 
 def run():
-    """Set up the mill and ingress a random bidisperse particle charge."""
+    """Set up the mill and ingress a random bidisperse particle charge.
+
+    Initializes YADE materials, loads the SAG mill STL slice, configures
+    Hertz–Mindlin contacts, opens a Qt viewer, and calls
+    :func:`sim_functions.ingress_random` with the bidisperse rock/steel charge.
+
+    Returns:
+        None
+    """
     sim_functions.initialize_simulation_materials(config.MATERIALS)
     sim_functions.initialize_sag_mill_slice(config.SAGMILL_STL_PATH)
     sim_functions.initialize_engines(

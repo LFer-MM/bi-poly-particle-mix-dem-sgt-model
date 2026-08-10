@@ -9,7 +9,21 @@ from .config import PipelineConfig
 
 
 def build_model(frames_in, n_features=4, gru_units=20, dense_units=15, learning_rate=0.01):
-    """Build and compile the GRU -> Dense regression model."""
+    """Build and compile the GRU -> Dense regression model.
+
+    Architecture: ``Input(frames_in, n_features)`` → GRU → Dense(tanh) →
+    Dense(3, linear) predicting next ``(x, y, z)``. Compiled with Adam and MSE.
+
+    Args:
+        frames_in: Temporal window length (input sequence length).
+        n_features: Features per timestep (typically 4: ``x, y, z, r``).
+        gru_units: Hidden size of the GRU layer.
+        dense_units: Units in the intermediate Dense layer.
+        learning_rate: Adam optimizer learning rate.
+
+    Returns:
+        keras.Model: Compiled sequential GRU surrogate model.
+    """
     from .tf_quiet import silence_tensorflow
 
     silence_tensorflow()
@@ -28,7 +42,19 @@ def build_model(frames_in, n_features=4, gru_units=20, dense_units=15, learning_
 
 
 def train_and_save(config: PipelineConfig, plot_history=True):
-    """Train the GRU surrogate on config.train_data_dir and save it."""
+    """Train the GRU surrogate on config.train_data_dir and save it.
+
+    Builds a supervised sliding-window dataset, fits the model, writes a
+    ``.keras`` artifact to ``config.model_path``, and optionally plots loss.
+
+    Args:
+        config: Pipeline settings (train data dir, epochs, batch size, etc.).
+        plot_history: If ``True``, plot train/validation MSE curves.
+
+    Returns:
+        tuple: ``(model, history)`` — the trained Keras model and its
+        ``History`` object.
+    """
     pos, rad, _ = data_io.load_frames_stacked(config.train_data_dir, config.frame_glob, config.feature_cols)
     X, y = data_io.build_supervised_dataset(pos, rad, config.frames_in)
     Xtr, ytr, Xval, yval = data_io.train_test_split(X, y, config.val_fraction, config.seed)
@@ -63,7 +89,16 @@ def train_and_save(config: PipelineConfig, plot_history=True):
 
 
 def plot_training_history(history, show=True):
-    """Plot train/validation loss curves from a keras History."""
+    """Plot train/validation loss curves from a keras History.
+
+    Args:
+        history: Keras ``History`` from ``model.fit`` (expects ``loss`` and
+            ``val_loss`` keys).
+        show: If ``True``, call ``plt.show()``.
+
+    Returns:
+        matplotlib.figure.Figure: The loss-curve figure.
+    """
     import matplotlib.pyplot as plt
 
     fig = plt.figure()

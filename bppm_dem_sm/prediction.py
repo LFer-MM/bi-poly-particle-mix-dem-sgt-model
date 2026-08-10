@@ -15,9 +15,19 @@ from .config import ID_COL, PipelineConfig
 
 
 class _SavedModelWrapper:
-    """Thin adapter for legacy TensorFlow SavedModel exports (Keras 3 cannot load these directly)."""
+    """Thin adapter for legacy TensorFlow SavedModel exports (Keras 3 cannot load these directly).
+
+    Exposes a Keras-like ``predict`` API and ``input_shape`` / ``output_shape``
+    attributes so the prediction loop can treat SavedModel and ``.keras``
+    artifacts uniformly.
+    """
 
     def __init__(self, path: Path):
+        """Load a SavedModel directory and bind the ``serving_default`` signature.
+
+        Args:
+            path: Directory containing ``saved_model.pb`` (and assets/variables).
+        """
         from .tf_quiet import silence_tensorflow
 
         silence_tensorflow()
@@ -33,6 +43,17 @@ class _SavedModelWrapper:
         self.output_shape = tuple(output_spec[self._output_key].shape.as_list())
 
     def predict(self, x, batch_size=32, verbose=0):
+        """Run batched inference through the SavedModel signature.
+
+        Args:
+            x: Input array of shape matching ``input_shape`` (typically
+                ``(N, frames_in, n_features)``).
+            batch_size: Number of particles (rows) per forward pass.
+            verbose: Unused; kept for Keras ``model.predict`` compatibility.
+
+        Returns:
+            numpy.ndarray: Concatenated model outputs along axis 0.
+        """
         import numpy as np
 
         parts = []
@@ -46,7 +67,17 @@ class _SavedModelWrapper:
 
 
 def _resolve_model_path(path: Path) -> Path:
-    """Return an existing `.keras`, `.h5`, or SavedModel directory path."""
+    """Return an existing `.keras`, `.h5`, or SavedModel directory path.
+
+    Args:
+        path: Requested model path (file or directory); alternate suffixes are tried.
+
+    Returns:
+        Path: Resolved artifact path that exists on disk.
+
+    Raises:
+        FileNotFoundError: If no Keras file or SavedModel directory is found.
+    """
     candidates = [path]
     if path.suffix in {".keras", ".h5"}:
         candidates.append(path.with_suffix(""))
@@ -63,7 +94,14 @@ def _resolve_model_path(path: Path) -> Path:
 
 
 def load_model(path):
-    """Load a saved Keras model (``.keras``/``.h5``) or legacy SavedModel directory."""
+    """Load a saved Keras model (``.keras``/``.h5``) or legacy SavedModel directory.
+
+    Args:
+        path: Path to a ``.keras``/``.h5`` file or SavedModel directory.
+
+    Returns:
+        keras.Model or _SavedModelWrapper: Loaded model with a ``predict`` method.
+    """
     from .tf_quiet import silence_tensorflow
 
     silence_tensorflow()
@@ -76,7 +114,20 @@ def load_model(path):
 
 
 def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
-    """Slide a window over frames, predict next positions, and save parquets."""
+    """Slide a window over frames, predict next positions, and save parquets.
+
+    Writes one ``pred_frame_XXXXX.parquet`` per step under
+    ``config.pred_frames_dir`` and a combined
+    ``predictions_all.parquet`` under ``config.pred_out_dir``.
+
+    Args:
+        config: Pipeline settings (data dir, model path, window length, dt, etc.).
+        model: Optional pre-loaded model; if ``None``, loads ``config.model_path``.
+
+    Returns:
+        pd.DataFrame: Combined predictions with ``frame_pred``, ``step``,
+        ``id``, ``x``, ``y``, ``z``, ``dt``, and ``r`` columns.
+    """
     config.pred_frames_dir.mkdir(parents=True, exist_ok=True)
 
     feature_cols = config.feature_cols

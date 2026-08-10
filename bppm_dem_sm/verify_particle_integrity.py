@@ -9,7 +9,16 @@ import pandas as pd
 
 
 def particle_radius_counts_per_file(folder_path, size_column="r"):
-    """Stack the value counts of size_column per parquet file."""
+    """Stack the value counts of size_column per parquet file.
+
+    Args:
+        folder_path: Directory of ``*.parquet`` frames.
+        size_column: Column holding particle radius (default ``"r"``).
+
+    Returns:
+        pd.DataFrame: Rows are files, columns are distinct radius values,
+        cells are particle counts (missing filled with 0).
+    """
     all_counts = []
     for file in glob.glob(os.path.join(folder_path, "*.parquet")):
         counts = pd.read_parquet(file)[size_column].value_counts()
@@ -19,7 +28,19 @@ def particle_radius_counts_per_file(folder_path, size_column="r"):
 
 
 def report_particle_integrity(folder_path, size_column="r"):
-    """Print counts/mean/std of radii across frames as an integrity check."""
+    """Print counts/mean/std of radii across frames as an integrity check.
+
+    A healthy bidisperse DEM export should have near-zero std of counts per
+    size class across frames (same inventory every frame).
+
+    Args:
+        folder_path: Directory of ``*.parquet`` frames.
+        size_column: Column holding particle radius (default ``"r"``).
+
+    Returns:
+        pd.DataFrame: Per-file radius count table from
+        :func:`particle_radius_counts_per_file`.
+    """
     counts_df = particle_radius_counts_per_file(folder_path, size_column)
 
     print("\nCounts per file:\n")

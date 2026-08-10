@@ -14,7 +14,24 @@ from .tf_quiet import silence_tensorflow
 
 
 def run_pipeline(config: PipelineConfig | None = None, **overrides):
-    """Run the configurable surrogate pipeline; returns a dict of artifacts."""
+    """Run the configurable surrogate pipeline; returns a dict of artifacts.
+
+    Stages (each gated by the corresponding ``do_*`` flag on ``config``):
+
+    1. Train the GRU surrogate
+    2. Predict frames with a sliding window
+    3. Compute Lacey mixing-index metrics
+    4. Generate cell-grid and animation visualizations
+
+    Args:
+        config: Base pipeline configuration; ``None`` uses defaults.
+        **overrides: Field overrides applied via ``dataclasses.replace``
+            (e.g. ``do_train=True``).
+
+    Returns:
+        dict: Artifacts keyed by stage (``config``, and optionally ``model``,
+        ``history``, ``predictions``, ``metrics``, ``visualizations``).
+    """
     silence_tensorflow()
     config = replace(config or PipelineConfig(), **overrides)
 

@@ -22,12 +22,29 @@ sys.path.insert(0, os.path.abspath('../..'))  # points to your repo root
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
 ]
+
+# Google-style docstrings in the package.
+napoleon_google_docstring = True
+napoleon_numpy_docstring = False
+napoleon_include_init_with_doc = True
+napoleon_include_private_with_doc = False
+
+autodoc_default_options = {
+    'members': True,
+    'member-order': 'bysource',
+    'undoc-members': True,
+    'show-inheritance': True,
+}
 
 # Allow docs to build without heavyweight/optional runtime deps.
 autodoc_mock_imports = [
     "tensorflow",
     "yade",
+    "yade._polyhedra_utils",
+    "yade.utils",
+    "yade.wrapper",
 ]
 
 html_theme = 'sphinx_rtd_theme'
