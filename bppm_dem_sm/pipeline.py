@@ -10,10 +10,12 @@ from dataclasses import replace
 
 from . import prediction, run_metrics, run_visualization, training
 from .config import PipelineConfig
+from .tf_quiet import silence_tensorflow
 
 
 def run_pipeline(config: PipelineConfig | None = None, **overrides):
     """Run the configurable surrogate pipeline; returns a dict of artifacts."""
+    silence_tensorflow()
     config = replace(config or PipelineConfig(), **overrides)
 
     results: dict = {"config": config}

@@ -10,6 +10,9 @@ from .config import PipelineConfig
 
 def build_model(frames_in, n_features=4, gru_units=20, dense_units=15, learning_rate=0.01):
     """Build and compile the GRU -> Dense regression model."""
+    from .tf_quiet import silence_tensorflow
+
+    silence_tensorflow()
     import tensorflow as tf
 
     model = tf.keras.Sequential(

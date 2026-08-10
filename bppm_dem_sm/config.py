@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, fields
+import json
 import math
 from pathlib import Path
+from typing import Any, get_type_hints
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = REPO_ROOT / "data"
@@ -121,3 +123,66 @@ class PipelineConfig:
     def pred_combined_parquet(self) -> Path:
         """Path to the combined predictions table."""
         return Path(self.pred_out_dir) / "predictions_all.parquet"
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize config fields; ``Path`` values become strings."""
+        raw = asdict(self)
+        for name, typ in _field_types().items():
+            if typ is Path and raw.get(name) is not None:
+                raw[name] = str(raw[name])
+        return raw
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> PipelineConfig:
+        """Build a config from a mapping (e.g. parsed JSON). Unknown keys raise."""
+        known = {f.name for f in fields(cls)}
+        unknown = set(data) - known
+        if unknown:
+            raise ValueError(f"Unknown PipelineConfig keys: {sorted(unknown)}")
+
+        coerced: dict[str, Any] = {}
+        type_by_name = _field_types()
+        for key, value in data.items():
+            typ = type_by_name[key]
+            if typ is Path and value is not None:
+                coerced[key] = Path(value)
+            elif typ is bool and not isinstance(value, bool):
+                coerced[key] = _coerce_bool(value, key)
+            else:
+                coerced[key] = value
+        return cls(**coerced)
+
+    @classmethod
+    def from_json(cls, path: Path | str) -> PipelineConfig:
+        """Load config from a JSON file."""
+        path = Path(path)
+        with path.open(encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            raise ValueError(f"Config JSON must be an object, got {type(data).__name__}")
+        return cls.from_dict(data)
+
+
+def _field_types() -> dict[str, type]:
+    """Map field name -> concrete type used for coercion."""
+    hints = get_type_hints(PipelineConfig)
+    mapping: dict[str, type] = {}
+    for name, hint in hints.items():
+        origin = getattr(hint, "__origin__", None)
+        if hint is Path or origin is Path:
+            mapping[name] = Path
+        elif hint is bool:
+            mapping[name] = bool
+        else:
+            mapping[name] = object
+    return mapping
+
+
+def _coerce_bool(value: Any, key: str) -> bool:
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "off"}:
+            return False
+    raise TypeError(f"Cannot coerce {key!r}={value!r} to bool")

@@ -7,8 +7,8 @@ import os
 
 import numpy as np
 import pandas as pd
-
 from pathlib import Path
+from tqdm import tqdm
 
 from . import data_io
 from .config import ID_COL, PipelineConfig
@@ -18,6 +18,9 @@ class _SavedModelWrapper:
     """Thin adapter for legacy TensorFlow SavedModel exports (Keras 3 cannot load these directly)."""
 
     def __init__(self, path: Path):
+        from .tf_quiet import silence_tensorflow
+
+        silence_tensorflow()
         import tensorflow as tf
 
         fn = tf.saved_model.load(str(path)).signatures["serving_default"]
@@ -61,6 +64,9 @@ def _resolve_model_path(path: Path) -> Path:
 
 def load_model(path):
     """Load a saved Keras model (``.keras``/``.h5``) or legacy SavedModel directory."""
+    from .tf_quiet import silence_tensorflow
+
+    silence_tensorflow()
     import keras
 
     resolved = _resolve_model_path(Path(path))
@@ -95,7 +101,7 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
     steps = T - (start + seq_len) if config.predict_until_end else config.max_steps
 
     all_rows = []
-    for step in range(steps):
+    for step in tqdm(range(steps), desc="Predicted & saved frames", unit="frame"):
         target_frame_idx = start + seq_len + step
         x_in = np.stack(window, axis=1)  # (N, seq_len, F)
 
@@ -127,9 +133,6 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
         else:
             next_df = data_io.load_frame(frame_files[target_frame_idx], cols_needed)
             window.append(next_df[feature_cols].to_numpy(np.float32))
-
-        if (step + 1) % 10 == 0:
-            print(f"Predicted & saved {step + 1}/{steps} frames...")
 
     combined = pd.concat(all_rows, ignore_index=True)
     combined.to_parquet(str(config.pred_combined_parquet), index=False)

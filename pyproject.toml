@@ -17,6 +17,9 @@ classifiers = [
 ]
 requires-python = "~=3.12.0"
 
+[project.scripts]
+bppm-pipeline = "bppm_dem_sm.cli:main"
+
 [project.optional-dependencies]
 docs = [
   "sphinx>=7,<9",

@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
 from . import data_io
 from .cell_grid import plot_particles_with_grid
-from .config import FIGURES_DIR, PipelineConfig
+from .config import INTERIM_DIR, PipelineConfig
 
 _PLANE_AXES = {"xy": ("x", "y"), "xz": ("x", "z"), "yz": ("y", "z")}
+VIZ_DIR = INTERIM_DIR / "figures"
 
 SMALL_COLOR = "#d62728"
 LARGE_COLOR = "#1f77b4"
@@ -25,7 +27,7 @@ def _radius_colors(r):
 
 def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet", save_path=None):
     """Build a 2D scatter animation colored by particle radius."""
-    from matplotlib.animation import FuncAnimation
+    from matplotlib.animation import FuncAnimation, writers
     import matplotlib.pyplot as plt
 
     ax_x, ax_y = _PLANE_AXES[config.plane]
@@ -55,28 +57,58 @@ def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet"
     anim = FuncAnimation(fig, update, frames=len(files), interval=int(1000 / config.fps), blit=False)
 
     if save_path:
-        anim.save(str(save_path), dpi=140, fps=config.fps)
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        # Pillow can write GIF/APNG, not MP4; use ffmpeg only when available.
+        if save_path.suffix.lower() == ".mp4" and not writers.is_available("ffmpeg"):
+            save_path = save_path.with_suffix(".gif")
+            print("ffmpeg not available; saving animation as GIF instead.")
+        writer = "ffmpeg" if save_path.suffix.lower() == ".mp4" else "pillow"
+        anim.save(str(save_path), dpi=140, fps=config.fps, writer=writer)
         print(f"Saved animation: {save_path}")
+        if not config.show_plots:
+            plt.close(fig)
+        return anim, save_path
     elif config.show_plots:
         plt.show()
-    return anim
+    return anim, None
 
 
-def plot_frame_grid(frame_path, config: PipelineConfig):
+def plot_frame_grid(frame_path, config: PipelineConfig, save_path=None, show=True):
     """Render a single frame with the Lacey cell grid overlaid."""
-    plot_particles_with_grid(str(frame_path), config.cell_size)
+    return plot_particles_with_grid(
+        str(frame_path),
+        config.cell_size,
+        save_path=save_path,
+        show=show,
+    )
 
 
 def generate_visualizations(config: PipelineConfig) -> dict:
     """Render the cell-grid frame and the prediction animation."""
     gt_files = data_io.sorted_frame_files(config.data_dir, config.frame_glob)
-    if config.show_plots:
-        plot_frame_grid(gt_files[0], config)
+    artifacts: dict = {"grid_frame": gt_files[0]}
 
-    save_path = None
+    grid_save = None
+    anim_save = None
     if config.save_figures:
-        FIGURES_DIR.mkdir(parents=True, exist_ok=True)
-        save_path = FIGURES_DIR / "pred_animation.mp4"
+        VIZ_DIR.mkdir(parents=True, exist_ok=True)
+        grid_save = VIZ_DIR / "cell_grid_frame.png"
+        anim_save = VIZ_DIR / "pred_animation.mp4"
 
-    anim = animate_frames(config.pred_frames_dir, config, "pred_frame_*.parquet", save_path)
-    return {"grid_frame": gt_files[0], "animation": anim}
+    if config.show_plots or config.save_figures:
+        artifacts["grid_figure"] = plot_frame_grid(
+            gt_files[0],
+            config,
+            save_path=grid_save,
+            show=config.show_plots,
+        )
+
+    anim, resolved_anim_path = animate_frames(
+        config.pred_frames_dir, config, "pred_frame_*.parquet", anim_save
+    )
+    artifacts["animation"] = anim
+    if config.save_figures:
+        artifacts["grid_save_path"] = grid_save
+        artifacts["animation_save_path"] = resolved_anim_path
+    return artifacts

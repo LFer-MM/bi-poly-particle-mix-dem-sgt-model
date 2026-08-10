@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 
 
-def plot_particles_with_grid(frame_path, cell_size, use_equal_aspect=True):
+def plot_particles_with_grid(
+    frame_path, cell_size, use_equal_aspect=True, save_path=None, show=True
+):
     """Scatter the two species on XY with a square grid overlay."""
     df = pd.read_parquet(frame_path)
     x, y, r = df["x"].values, df["y"].values, df["r"].values
@@ -36,4 +38,11 @@ def plot_particles_with_grid(frame_path, cell_size, use_equal_aspect=True):
     ax.legend()
 
     plt.tight_layout()
-    plt.show()
+    if save_path:
+        fig.savefig(str(save_path), dpi=140)
+        print(f"Saved figure: {save_path}")
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
+    return fig
