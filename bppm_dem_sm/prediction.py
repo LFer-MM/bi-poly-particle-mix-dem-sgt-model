@@ -117,8 +117,8 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
     """Slide a window over frames, predict next positions, and save parquets.
 
     Writes one ``pred_frame_XXXXX.parquet`` per step under
-    ``config.pred_frames_dir`` and a combined
-    ``predictions_all.parquet`` under ``config.pred_out_dir``.
+    ``config.prediction.pred_frames_dir`` and a combined
+    ``predictions_all.parquet`` under ``config.prediction.pred_out_dir``.
 
     Args:
         config: Pipeline settings (data dir, model path, window length, dt, etc.).
@@ -128,13 +128,14 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
         pd.DataFrame: Combined predictions with ``frame_pred``, ``step``,
         ``id``, ``x``, ``y``, ``z``, ``dt``, and ``r`` columns.
     """
-    config.pred_frames_dir.mkdir(parents=True, exist_ok=True)
+    pred = config.prediction
+    pred.pred_frames_dir.mkdir(parents=True, exist_ok=True)
 
     feature_cols = config.feature_cols
     cols_needed = [ID_COL] + feature_cols
     frame_files = data_io.sorted_frame_files(config.data_dir, config.frame_glob)
     T = len(frame_files)
-    start, seq_len = config.start_frame, config.frames_in
+    start, seq_len = pred.start_frame, config.frames_in
 
     if model is None:
         model = load_model(config.model_path)
@@ -149,14 +150,14 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
         df = data_io.load_frame(frame_files[start + k], cols_needed)
         window.append(df[feature_cols].to_numpy(np.float32))
 
-    steps = T - (start + seq_len) if config.predict_until_end else config.max_steps
+    steps = T - (start + seq_len) if pred.predict_until_end else pred.max_steps
 
     all_rows = []
     for step in tqdm(range(steps), desc="Predicted & saved frames", unit="frame"):
         target_frame_idx = start + seq_len + step
         x_in = np.stack(window, axis=1)  # (N, seq_len, F)
 
-        yhat = model.predict(x_in, batch_size=config.predict_batch_size, verbose=0)
+        yhat = model.predict(x_in, batch_size=pred.predict_batch_size, verbose=0)
         xyz = yhat[:, :3].astype(np.float32)
 
         pred_df = pd.DataFrame(
@@ -165,11 +166,11 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
                 "x": xyz[:, 0],
                 "y": xyz[:, 1],
                 "z": xyz[:, 2],
-                "dt": config.dt0 + step * config.dt_step,
+                "dt": pred.dt0 + step * pred.dt_step,
                 "r": base_r,
             }
         )
-        pred_path = os.path.join(str(config.pred_frames_dir), f"pred_frame_{target_frame_idx:05d}.parquet")
+        pred_path = os.path.join(str(pred.pred_frames_dir), f"pred_frame_{target_frame_idx:05d}.parquet")
         pred_df.to_parquet(pred_path, index=False)
 
         row = pred_df.copy()
@@ -177,7 +178,7 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
         row.insert(1, "step", step)
         all_rows.append(row)
 
-        if config.autoregressive:
+        if pred.autoregressive:
             last_feats = window[-1].copy()
             last_feats[:, :3] = xyz  # x, y, z are the first 3 feature columns
             window.append(last_feats)
@@ -186,6 +187,6 @@ def predict_frames(config: PipelineConfig, model=None) -> pd.DataFrame:
             window.append(next_df[feature_cols].to_numpy(np.float32))
 
     combined = pd.concat(all_rows, ignore_index=True)
-    combined.to_parquet(str(config.pred_combined_parquet), index=False)
-    print(f"Saved predictions under: {config.pred_out_dir}")
+    combined.to_parquet(str(pred.pred_combined_parquet), index=False)
+    print(f"Saved predictions under: {pred.pred_out_dir}")
     return combined

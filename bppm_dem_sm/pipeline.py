@@ -6,8 +6,6 @@ metrics, and renders visualizations. Each stage is also importable on its own.
 
 from __future__ import annotations
 
-from dataclasses import replace
-
 from . import prediction, run_metrics, run_visualization, training
 from .config import PipelineConfig
 from .tf_quiet import silence_tensorflow
@@ -25,15 +23,17 @@ def run_pipeline(config: PipelineConfig | None = None, **overrides):
 
     Args:
         config: Base pipeline configuration; ``None`` uses defaults.
-        **overrides: Field overrides applied via ``dataclasses.replace``
-            (e.g. ``do_train=True``).
+        **overrides: Field overrides applied via
+            :meth:`PipelineConfig.with_overrides`. Accepts core fields
+            (``do_train=True``), nested leaf names (``epochs=5``), or whole
+            option groups (``training=TrainingOptions(epochs=5)``).
 
     Returns:
         dict: Artifacts keyed by stage (``config``, and optionally ``model``,
         ``history``, ``predictions``, ``metrics``, ``visualizations``).
     """
     silence_tensorflow()
-    config = replace(config or PipelineConfig(), **overrides)
+    config = (config or PipelineConfig()).with_overrides(**overrides)
 
     results: dict = {"config": config}
     model = None
@@ -51,8 +51,9 @@ def run_pipeline(config: PipelineConfig | None = None, **overrides):
         print("STAGE 3/4: Metrics")
         metrics = run_metrics.compute_metrics(config)
         results["metrics"] = metrics
-        if config.show_plots or config.save_figures:
-            run_metrics.plot_lacey_comparison(metrics, config, show=config.show_plots)
+        viz = config.visualization
+        if viz.show_plots or viz.save_figures:
+            run_metrics.plot_lacey_comparison(metrics, config, show=viz.show_plots)
 
     if config.do_visualization:
         print("STAGE 4/4: Visualization")

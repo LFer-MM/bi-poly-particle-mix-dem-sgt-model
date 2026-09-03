@@ -6,7 +6,20 @@ animate_particles, csv_to_parquet, verify_particle_integrity, sim_functions,
 simulation, pipeline).
 """
 
-from .config import PipelineConfig
+from .config import (
+    MetricsOptions,
+    PipelineConfig,
+    PredictionOptions,
+    TrainingOptions,
+    VisualizationOptions,
+)
 from .pipeline import run_pipeline
 
-__all__ = ["PipelineConfig", "run_pipeline"]
+__all__ = [
+    "MetricsOptions",
+    "PipelineConfig",
+    "PredictionOptions",
+    "TrainingOptions",
+    "VisualizationOptions",
+    "run_pipeline",
+]

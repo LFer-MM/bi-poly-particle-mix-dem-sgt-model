@@ -20,7 +20,8 @@ def compute_lacey_over_dir(frames_dir, pattern, frame_re, tracer_r, config, out_
         pattern: Glob for frame files.
         frame_re: Regex used by :func:`extract_frame_index`.
         tracer_r: Tracer (large) particle radius.
-        config: Supplies ``cell_size``, ``min_particles_per_cell``, ``metrics_dt``.
+        config: Supplies ``metrics.cell_size``, ``metrics.min_particles_per_cell``,
+            and ``metrics.metrics_dt``.
         out_name: Filename for the summary parquet written into ``frames_dir``.
         label: Short label for log messages (e.g. ``"GT"``, ``"PRED"``).
 
@@ -34,12 +35,12 @@ def compute_lacey_over_dir(frames_dir, pattern, frame_re, tracer_r, config, out_
         frame_idx = lacey.extract_frame_index(pth, frame_re)
         df = pd.read_parquet(pth)
         M, n_cells, p_global, mean_n = lacey.lacey_index_for_frame(
-            df, config.cell_size, tracer_r, config.min_particles_per_cell
+            df, config.metrics.cell_size, tracer_r, config.metrics.min_particles_per_cell
         )
         rows.append(
             {
                 "frame": frame_idx,
-                "time": frame_idx * config.metrics_dt,
+                "time": frame_idx * config.metrics.metrics_dt,
                 "lacey": M,
                 "n_cells_used": n_cells,
                 "tracer_fraction_global": p_global,
@@ -58,7 +59,7 @@ def compute_metrics(config: PipelineConfig) -> dict[str, pd.DataFrame]:
 
     Detects the tracer radius from the first ground-truth frame, then runs
     :func:`compute_lacey_over_dir` on DEM frames and, when present, on
-    predicted frames under ``config.pred_frames_dir``.
+    predicted frames under ``config.prediction.pred_frames_dir``.
 
     Args:
         config: Pipeline settings for data paths and Lacey cell parameters.
@@ -78,9 +79,9 @@ def compute_metrics(config: PipelineConfig) -> dict[str, pd.DataFrame]:
         )
     }
 
-    if data_io.sorted_frame_files(config.pred_frames_dir, "pred_frame_*.parquet"):
+    if data_io.sorted_frame_files(config.prediction.pred_frames_dir, "pred_frame_*.parquet"):
         results["pred"] = compute_lacey_over_dir(
-            config.pred_frames_dir, "pred_frame_*.parquet", PRED_FRAME_RE, tracer_r, config,
+            config.prediction.pred_frames_dir, "pred_frame_*.parquet", PRED_FRAME_RE, tracer_r, config,
             "lacey_over_time_pred.parquet", "PRED",
         )
 
@@ -92,8 +93,8 @@ def plot_lacey_comparison(metrics: dict[str, pd.DataFrame], config: PipelineConf
 
     Args:
         metrics: Mapping from :func:`compute_metrics` (``gt`` / optional ``pred``).
-        config: If ``save_figures``, writes ``lacey_comparison.png`` under
-            ``FIGURES_DIR``.
+        config: If ``visualization.save_figures``, writes ``lacey_comparison.png``
+            under ``FIGURES_DIR``.
         show: If ``True``, display the figure interactively.
 
     Returns:
@@ -113,7 +114,7 @@ def plot_lacey_comparison(metrics: dict[str, pd.DataFrame], config: PipelineConf
     plt.legend()
     plt.tight_layout()
 
-    if config.save_figures:
+    if config.visualization.save_figures:
         FIGURES_DIR.mkdir(parents=True, exist_ok=True)
         fig.savefig(FIGURES_DIR / "lacey_comparison.png", dpi=140)
     if show:

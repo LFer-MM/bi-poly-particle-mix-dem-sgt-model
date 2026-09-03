@@ -19,7 +19,8 @@ Run the pipeline (CLI)
 ----------------------
 
 Preferred: pass a JSON file whose keys match :class:`~bppm_dem_sm.config.PipelineConfig`
-fields. When ``--config`` is set, other pipeline flags are ignored.
+(nested ``training`` / ``prediction`` / ``metrics`` / ``visualization`` objects).
+When ``--config`` is set, other pipeline flags are ignored.
 
 .. code-block:: bash
 
@@ -51,8 +52,10 @@ Minimal shape (paths and stage toggles). A fuller example lives at
      "do_predict": true,
      "do_metrics": true,
      "do_visualization": true,
-     "save_figures": true,
-     "show_plots": false
+     "visualization": {
+       "save_figures": true,
+       "show_plots": false
+     }
    }
 
 Stages gated by ``do_train``, ``do_predict``, ``do_metrics``, and
@@ -64,11 +67,12 @@ Use from Python
 
 .. code-block:: python
 
-   from bppm_dem_sm import PipelineConfig, run_pipeline
+   from bppm_dem_sm import PipelineConfig, TrainingOptions, run_pipeline
 
    cfg = PipelineConfig.from_json("configs/pipeline_example.json")
    results = run_pipeline(cfg)
-   # or: run_pipeline(do_train=True, do_predict=False)
+   # or: run_pipeline(do_train=True, do_predict=False, epochs=10)
+   # or: PipelineConfig(do_train=True, training=TrainingOptions(epochs=10))
 
 Build these docs locally
 ------------------------

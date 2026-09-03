@@ -35,7 +35,8 @@ def _radius_colors(r):
 def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet", save_path=None):
     """Build a 2D scatter animation colored by particle radius.
 
-    Uses ``config.plane``, ``fps``, ``marker_size``, and ``every_nth_frame``.
+    Uses ``config.visualization`` for ``plane``, ``fps``, ``marker_size``, and
+    ``every_nth_frame``.
     When saving MP4 without ffmpeg, falls back to GIF via Pillow.
 
     Args:
@@ -43,7 +44,7 @@ def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet"
         config: Visualization settings from ``PipelineConfig``.
         pattern: Glob for frame files (e.g. ``pred_frame_*.parquet``).
         save_path: Optional output path (``.mp4`` or ``.gif``); ``None`` shows
-            interactively when ``config.show_plots`` is true.
+            interactively when ``config.visualization.show_plots`` is true.
 
     Returns:
         tuple: ``(anim, resolved_save_path)`` where ``resolved_save_path`` may
@@ -53,8 +54,9 @@ def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet"
     from matplotlib.animation import FuncAnimation, writers
     import matplotlib.pyplot as plt
 
-    ax_x, ax_y = _PLANE_AXES[config.plane]
-    files = data_io.sorted_frame_files(frames_dir, pattern)[:: config.every_nth_frame]
+    viz = config.visualization
+    ax_x, ax_y = _PLANE_AXES[viz.plane]
+    files = data_io.sorted_frame_files(frames_dir, pattern)[:: viz.every_nth_frame]
 
     df0 = pd.read_parquet(files[0])
     fig, ax = plt.subplots()
@@ -66,7 +68,7 @@ def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet"
 
     sc = ax.scatter(
         df0[ax_x].to_numpy(), df0[ax_y].to_numpy(),
-        c=_radius_colors(df0["r"].to_numpy()), s=config.marker_size, alpha=0.75,
+        c=_radius_colors(df0["r"].to_numpy()), s=viz.marker_size, alpha=0.75,
     )
     title = ax.set_title(os.path.basename(files[0]))
 
@@ -77,7 +79,7 @@ def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet"
         title.set_text(os.path.basename(files[i]))
         return sc, title
 
-    anim = FuncAnimation(fig, update, frames=len(files), interval=int(1000 / config.fps), blit=False)
+    anim = FuncAnimation(fig, update, frames=len(files), interval=int(1000 / viz.fps), blit=False)
 
     if save_path:
         save_path = Path(save_path)
@@ -87,12 +89,12 @@ def animate_frames(frames_dir, config: PipelineConfig, pattern="frame_*.parquet"
             save_path = save_path.with_suffix(".gif")
             print("ffmpeg not available; saving animation as GIF instead.")
         writer = "ffmpeg" if save_path.suffix.lower() == ".mp4" else "pillow"
-        anim.save(str(save_path), dpi=140, fps=config.fps, writer=writer)
+        anim.save(str(save_path), dpi=140, fps=viz.fps, writer=writer)
         print(f"Saved animation: {save_path}")
-        if not config.show_plots:
+        if not viz.show_plots:
             plt.close(fig)
         return anim, save_path
-    elif config.show_plots:
+    elif viz.show_plots:
         plt.show()
     return anim, None
 
@@ -102,7 +104,7 @@ def plot_frame_grid(frame_path, config: PipelineConfig, save_path=None, show=Tru
 
     Args:
         frame_path: Parquet frame to scatter-plot.
-        config: Supplies ``cell_size`` for the grid overlay.
+        config: Supplies ``metrics.cell_size`` for the grid overlay.
         save_path: Optional path to save the figure.
         show: Whether to display the figure interactively.
 
@@ -111,7 +113,7 @@ def plot_frame_grid(frame_path, config: PipelineConfig, save_path=None, show=Tru
     """
     return plot_particles_with_grid(
         str(frame_path),
-        config.cell_size,
+        config.metrics.cell_size,
         save_path=save_path,
         show=show,
     )
@@ -121,7 +123,7 @@ def generate_visualizations(config: PipelineConfig) -> dict:
     """Render the cell-grid frame and the prediction animation.
 
     Plots the first ground-truth frame with the Lacey cell grid and animates
-    predicted frames under ``config.pred_frames_dir``.
+    predicted frames under ``config.prediction.pred_frames_dir``.
 
     Args:
         config: Pipeline settings controlling show/save and animation options.
@@ -133,26 +135,27 @@ def generate_visualizations(config: PipelineConfig) -> dict:
     gt_files = data_io.sorted_frame_files(config.data_dir, config.frame_glob)
     artifacts: dict = {"grid_frame": gt_files[0]}
 
+    viz = config.visualization
     grid_save = None
     anim_save = None
-    if config.save_figures:
+    if viz.save_figures:
         VIZ_DIR.mkdir(parents=True, exist_ok=True)
         grid_save = VIZ_DIR / "cell_grid_frame.png"
         anim_save = VIZ_DIR / "pred_animation.mp4"
 
-    if config.show_plots or config.save_figures:
+    if viz.show_plots or viz.save_figures:
         artifacts["grid_figure"] = plot_frame_grid(
             gt_files[0],
             config,
             save_path=grid_save,
-            show=config.show_plots,
+            show=viz.show_plots,
         )
 
     anim, resolved_anim_path = animate_frames(
-        config.pred_frames_dir, config, "pred_frame_*.parquet", anim_save
+        config.prediction.pred_frames_dir, config, "pred_frame_*.parquet", anim_save
     )
     artifacts["animation"] = anim
-    if config.save_figures:
+    if viz.save_figures:
         artifacts["grid_save_path"] = grid_save
         artifacts["animation_save_path"] = resolved_anim_path
     return artifacts

@@ -6,31 +6,39 @@
   "model_path": "models/rnn_gru_sic_model.keras",
   "frames_in": 15,
   "do_train": false,
-  "epochs": 20,
-  "batch_size": 500,
-  "learning_rate": 0.01,
-  "val_fraction": 0.1,
-  "seed": 0,
-  "gru_units": 20,
-  "dense_units": 15,
   "do_predict": true,
-  "start_frame": 66,
-  "autoregressive": false,
-  "predict_until_end": true,
-  "max_steps": 200,
-  "predict_batch_size": 2048,
-  "dt0": 4.05,
-  "dt_step": 0.05,
-  "pred_out_dir": "data/interim/rnn_predictions",
   "do_metrics": true,
-  "cell_size": 0.4732,
-  "min_particles_per_cell": 15,
-  "metrics_dt": 0.05,
   "do_visualization": true,
-  "plane": "xy",
-  "fps": 30,
-  "marker_size": 4.0,
-  "every_nth_frame": 1,
-  "save_figures": true,
-  "show_plots": true
+  "training": {
+    "epochs": 20,
+    "batch_size": 500,
+    "learning_rate": 0.01,
+    "val_fraction": 0.1,
+    "seed": 0,
+    "gru_units": 20,
+    "dense_units": 15
+  },
+  "prediction": {
+    "start_frame": 66,
+    "autoregressive": false,
+    "predict_until_end": true,
+    "max_steps": 200,
+    "predict_batch_size": 2048,
+    "dt0": 4.05,
+    "dt_step": 0.05,
+    "pred_out_dir": "data/interim/rnn_predictions"
+  },
+  "metrics": {
+    "cell_size": 0.4732,
+    "min_particles_per_cell": 15,
+    "metrics_dt": 0.05
+  },
+  "visualization": {
+    "plane": "xy",
+    "fps": 30,
+    "marker_size": 4.0,
+    "every_nth_frame": 1,
+    "save_figures": true,
+    "show_plots": true
+  }
 }

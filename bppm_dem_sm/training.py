@@ -55,24 +55,25 @@ def train_and_save(config: PipelineConfig, plot_history=True):
         tuple: ``(model, history)`` — the trained Keras model and its
         ``History`` object.
     """
+    train = config.training
     pos, rad, _ = data_io.load_frames_stacked(config.train_data_dir, config.frame_glob, config.feature_cols)
     X, y = data_io.build_supervised_dataset(pos, rad, config.frames_in)
-    Xtr, ytr, Xval, yval = data_io.train_test_split(X, y, config.val_fraction, config.seed)
+    Xtr, ytr, Xval, yval = data_io.train_test_split(X, y, train.val_fraction, train.seed)
 
     model = build_model(
         config.frames_in,
         n_features=X.shape[-1],
-        gru_units=config.gru_units,
-        dense_units=config.dense_units,
-        learning_rate=config.learning_rate,
+        gru_units=train.gru_units,
+        dense_units=train.dense_units,
+        learning_rate=train.learning_rate,
     )
     model.summary()
 
     history = model.fit(
         Xtr, ytr,
         validation_data=(Xval, yval),
-        epochs=config.epochs,
-        batch_size=config.batch_size,
+        epochs=train.epochs,
+        batch_size=train.batch_size,
         verbose=2,
     )
 
@@ -84,7 +85,7 @@ def train_and_save(config: PipelineConfig, plot_history=True):
     print(f"Saved model to: {save_path}")
 
     if plot_history:
-        plot_training_history(history, show=config.show_plots)
+        plot_training_history(history, show=config.visualization.show_plots)
     return model, history
 
 
